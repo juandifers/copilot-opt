@@ -1,0 +1,80 @@
+backends:
+  nearest_neighbor:
+    enabled: true
+  savings:
+    enabled: true
+  pyvrp:
+    enabled: true
+    params:
+      time_limit_sec: 10
+      seed: 1
+observables:
+  top_k: 3
+  route_ranking: route_distance_contribution
+  assignment_metric: adjusted_rand_index
+activation_thresholds:
+  nonzero_response:
+    objective_rel_change: 0.01
+    route_count_change: true
+  structural_response:
+    adjusted_rand_below: 0.95
+    route_count_change: true
+  backend_disagreement:
+    objective_gap_rel: 0.03
+    adjusted_rand_below: 0.9
+difficulty:
+  easy:
+    objective_gap_rel_max: 0.05
+    ari_min: 0.75
+  medium:
+    objective_gap_rel_min: 0.05
+    objective_gap_rel_max: 0.15
+    ari_min: 0.5
+    ari_max: 0.75
+  hard:
+    objective_gap_rel_min: 0.15
+    ari_max: 0.5
+perturbations:
+  required:
+    capacity_reduction:
+      factors:
+      - 0.98
+      - 0.95
+      - 0.9
+      - 0.8
+    regional_distance_inflation:
+      factors:
+      - 1.1
+      - 1.25
+      - 1.5
+  exploratory:
+    localized_demand_inflation:
+      factors:
+      - 1.1
+      - 1.25
+    customer_insertion:
+      counts:
+      - 1
+      - 3
+decision_rules:
+  proceed:
+    easy_min_share: 0.2
+    medium_min_share: 0.2
+    hard_min_share: 0.2
+    savings_intermediate_required: true
+    both_perturbations_activate: true
+  revise:
+    nearest_neighbor_always_bad: true
+    no_medium_band: true
+  stop:
+    pyvrp_fails_required: true
+    artifacts_inconsistent_required: true
+outputs:
+  registry_file: data/processed/phase2/scenario_registry.csv
+  backend_comparisons_file: data/processed/phase2/backend_comparisons.csv
+  perturbation_activation_file: data/processed/phase2/perturbation_activation.csv
+  difficulty_labels_file: data/processed/phase2/difficulty_labels.csv
+  conditional_gap_summary_file: data/processed/phase2/conditional_gap_summary.csv
+  solutions_jsonl: reports/phase2/solutions.jsonl
+  claim_errors_file: data/processed/phase2/claim_errors.csv
+  report_file: reports/phase2/phase2_difficulty_audit.md

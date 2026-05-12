@@ -1,0 +1,99 @@
+# Phase 3 — Information sufficiency and recompute routing.
+#
+# We answer: given an existing solution S to the unperturbed instance and a
+# perturbation query, do we (a) reuse_direct(S), (b) estimate via a cheap
+# heuristic, or (c) recompute? Conditional on recompute, do we spend 10s or
+# 60s of PyVRP wall-clock?
+#
+# Reference backend is locked to PyVRP @ 60s. PyVRP @ 10s is only an action.
+
+instances:
+  registry_csv: data/processed/instance_registry.csv
+  use_phase1_instances: true
+  max_instances: 15
+  raw_dir: data/raw/cvrplib
+
+reference:
+  backend: pyvrp
+  time_limit_sec: 60
+  seed: 1
+  round_func: round
+
+# Existing baseline solutions S (PyVRP 60s on the *unperturbed* instance) are
+# loaded from Phase 1 solutions.jsonl. Same seed, same backend, same time
+# limit — they ARE the reference quality applied to the nominal instance.
+baseline_source:
+  jsonl: reports/phase1/solutions.jsonl
+  scenario: unknown      # Phase 1 logged the nominal scenario as 'unknown'.
+  backend_name: pyvrp
+  time_limit_sec: 60.0
+
+# Perturbations Phase 3 covers (the Phase 2 'required' grid). Exploratory
+# families are skipped: they do not have a clean baseline-vs-perturbed
+# convention because they change n_customers.
+perturbations:
+  capacity_reduction:
+    factors: [0.98, 0.95, 0.9, 0.8]
+  regional_distance_inflation:
+    factors: [1.1, 1.25, 1.5]
+
+# Actions whose loss/runtime we compare in the lambda sweep.
+actions:
+  - name: reuse_direct
+    runtime_estimate_sec: 0.001   # fixed-solution evaluation; near-zero.
+  - name: nearest_neighbor
+    backend: nearest_neighbor
+  - name: clarke_wright
+    backend: savings
+  - name: pyvrp_10s
+    backend: pyvrp
+    time_limit_sec: 10
+    seed: 1
+  - name: pyvrp_60s
+    backend: pyvrp
+    time_limit_sec: 60
+    seed: 1
+
+# Source for re-using existing PyVRP 60s artifacts:
+#   - Phase 1 capacity@{0.9, 0.8} on nominal + perturbed
+#   - Phase 2R budget_check (5 mixed scenarios)
+# Anything missing in the (instance × scenario) grid is computed fresh.
+existing_pyvrp_60s_sources:
+  - reports/phase1/solutions.jsonl
+  - data/processed/phase2r/budget_check
+
+cheap_estimator_source:
+  jsonl: reports/phase2/solutions.jsonl
+  backends: [nearest_neighbor, savings]
+
+pyvrp_10s_source:
+  jsonl: reports/phase2/solutions.jsonl
+  backend_name: pyvrp
+  time_limit_sec: 10.0
+
+# Lambda grid for the recompute-routing sweep.
+lambda_grid:
+  type: explicit
+  values: [0.0, 0.0001, 0.001, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0]
+
+outputs:
+  results_dir: experiments/phase3_information_sufficiency/artifacts
+  reference_jsonl: data/processed/phase3/pyvrp60s_reference.jsonl
+  reuse_direct_jsonl: data/processed/phase3/reuse_direct.jsonl
+
+  reuse_direct_results_csv: phase3_reuse_direct_results.csv
+  reuse_direct_metrics_json: phase3_reuse_direct_metrics.json
+  estimation_results_csv: phase3_estimation_results.csv
+  estimation_metrics_json: phase3_estimation_metrics.json
+  lambda_curves_csv: phase3_lambda_curves.csv
+  policy_summary_json: phase3_policy_summary.json
+
+  table_1: table_1_reuse_direct_by_claim_family.csv
+  table_2: table_2_estimation_by_claim_family.csv
+  table_3: table_3_lambda_action_shares.csv
+
+  figure_1: figure_1_reuse_vs_estimation_errors.png
+  figure_2: figure_2_lambda_curves_by_claim_family.png
+  figure_3: figure_3_best_action_heatmap.png
+
+  summary_md: experiments/phase3_information_sufficiency/PHASE3_SUMMARY.md

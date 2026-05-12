@@ -1,0 +1,101 @@
+{
+  "tolerance": 1e-09,
+  "tie_break_rule": "Python's `min(dict, key=dict.get)` returns the first-inserted key with the minimum value. The action dict is built by iterating ACTIONS = ['reuse_direct', 'nearest_neighbor', 'clarke_wright', 'pyvrp_10s', 'pyvrp_60s'], so reuse_direct wins ties over nearest_neighbor, which wins over clarke_wright, and so on; pyvrp_60s wins ties only if every other action fails to match its loss.",
+  "by_claim_family": {
+    "objective_resource_delta": {
+      "n": 105,
+      "n_with_ties": 30,
+      "tie_share_pct": 28.571428571428573,
+      "wins_pyvrp_60s_original_pct": 71.42857142857143,
+      "wins_pyvrp_60s_strict_pct": 100.0,
+      "wins_pyvrp_60s_cheapest_runtime_pct": 71.42857142857143,
+      "share_pct_original_tiebreak": {
+        "reuse_direct": 4.761904761904762,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 23.80952380952381,
+        "pyvrp_60s": 71.42857142857143
+      },
+      "share_pct_strict_tiebreak": {
+        "reuse_direct": 0.0,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 100.0
+      },
+      "share_pct_cheapest_runtime_tiebreak": {
+        "reuse_direct": 4.761904761904762,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 23.80952380952381,
+        "pyvrp_60s": 71.42857142857143
+      },
+      "honest_non_60s_wins_pct": 0.0
+    },
+    "topk_route_ranking": {
+      "n": 105,
+      "n_with_ties": 45,
+      "tie_share_pct": 42.857142857142854,
+      "wins_pyvrp_60s_original_pct": 57.142857142857146,
+      "wins_pyvrp_60s_strict_pct": 100.0,
+      "wins_pyvrp_60s_cheapest_runtime_pct": 57.142857142857146,
+      "share_pct_original_tiebreak": {
+        "reuse_direct": 16.19047619047619,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 26.666666666666668,
+        "pyvrp_60s": 57.142857142857146
+      },
+      "share_pct_strict_tiebreak": {
+        "reuse_direct": 0.0,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 100.0
+      },
+      "share_pct_cheapest_runtime_tiebreak": {
+        "reuse_direct": 16.19047619047619,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 26.666666666666668,
+        "pyvrp_60s": 57.142857142857146
+      },
+      "honest_non_60s_wins_pct": 0.0
+    },
+    "assignment_structure": {
+      "n": 105,
+      "n_with_ties": 33,
+      "tie_share_pct": 31.428571428571427,
+      "wins_pyvrp_60s_original_pct": 68.57142857142857,
+      "wins_pyvrp_60s_strict_pct": 100.0,
+      "wins_pyvrp_60s_cheapest_runtime_pct": 68.57142857142857,
+      "share_pct_original_tiebreak": {
+        "reuse_direct": 10.476190476190476,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 20.952380952380953,
+        "pyvrp_60s": 68.57142857142857
+      },
+      "share_pct_strict_tiebreak": {
+        "reuse_direct": 0.0,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 100.0
+      },
+      "share_pct_cheapest_runtime_tiebreak": {
+        "reuse_direct": 10.476190476190476,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 20.952380952380953,
+        "pyvrp_60s": 68.57142857142857
+      },
+      "honest_non_60s_wins_pct": 0.0
+    }
+  },
+  "shifts": {
+    "n_cells_total": 315,
+    "cells_changed_under_strict_tiebreak_pct": 34.285714285714285,
+    "cells_changed_under_cheapest_runtime_tiebreak_pct": 0.0
+  }
+}

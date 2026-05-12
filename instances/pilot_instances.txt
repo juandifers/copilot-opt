@@ -1,0 +1,16 @@
+# Pilot roster: 3 Uchoa-X instances spanning the Stage A size distribution.
+#
+# Selection (deterministic, documented):
+#   X-n101-k25  — smallest (100 customers). Validates the cheap-action path
+#                 and the small-phase worker pool.
+#   X-n251-k28  — median (250 customers). Typical Stage A case.
+#   X-n429-k61  — large (428 customers, > 400 threshold). Routed to the
+#                 large-phase pool (workers-large=4). Memory stress test.
+#                 Also one of the three §12.2 buffer instances absorbed
+#                 into the roster at v0.5, so the pilot exercises the new
+#                 instances.
+#
+# Format: one instance ID per line; blank lines and # comments are ignored.
+X-n101-k25
+X-n251-k28
+X-n429-k61

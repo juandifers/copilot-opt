@@ -1,0 +1,92 @@
+[
+  {
+    "name": "X-n101-k25",
+    "path": "/Users/jd/Documents/copilot-opt/vrp-copilot-benchmark/data/raw/cvrplib/X-n101-k25.vrp",
+    "source": "manual",
+    "url": null
+  },
+  {
+    "name": "X-n110-k13",
+    "path": "/Users/jd/Documents/copilot-opt/vrp-copilot-benchmark/data/raw/cvrplib/X-n110-k13.vrp",
+    "source": "manual",
+    "url": null
+  },
+  {
+    "name": "X-n120-k6",
+    "path": "/Users/jd/Documents/copilot-opt/vrp-copilot-benchmark/data/raw/cvrplib/X-n120-k6.vrp",
+    "source": "manual",
+    "url": null
+  },
+  {
+    "name": "X-n134-k13",
+    "path": "/Users/jd/Documents/copilot-opt/vrp-copilot-benchmark/data/raw/cvrplib/X-n134-k13.vrp",
+    "source": "manual",
+    "url": null
+  },
+  {
+    "name": "X-n148-k46",
+    "path": "/Users/jd/Documents/copilot-opt/vrp-copilot-benchmark/data/raw/cvrplib/X-n148-k46.vrp",
+    "source": "manual",
+    "url": null
+  },
+  {
+    "name": "X-n153-k22",
+    "path": "/Users/jd/Documents/copilot-opt/vrp-copilot-benchmark/data/raw/cvrplib/X-n153-k22.vrp",
+    "source": "manual",
+    "url": null
+  },
+  {
+    "name": "X-n162-k11",
+    "path": "/Users/jd/Documents/copilot-opt/vrp-copilot-benchmark/data/raw/cvrplib/X-n162-k11.vrp",
+    "source": "manual",
+    "url": null
+  },
+  {
+    "name": "X-n172-k51",
+    "path": "/Users/jd/Documents/copilot-opt/vrp-copilot-benchmark/data/raw/cvrplib/X-n172-k51.vrp",
+    "source": "manual",
+    "url": null
+  },
+  {
+    "name": "X-n181-k23",
+    "path": "/Users/jd/Documents/copilot-opt/vrp-copilot-benchmark/data/raw/cvrplib/X-n181-k23.vrp",
+    "source": "manual",
+    "url": null
+  },
+  {
+    "name": "X-n190-k8",
+    "path": "/Users/jd/Documents/copilot-opt/vrp-copilot-benchmark/data/raw/cvrplib/X-n190-k8.vrp",
+    "source": "manual",
+    "url": null
+  },
+  {
+    "name": "X-n200-k36",
+    "path": "/Users/jd/Documents/copilot-opt/vrp-copilot-benchmark/data/raw/cvrplib/X-n200-k36.vrp",
+    "source": "manual",
+    "url": null
+  },
+  {
+    "name": "X-n214-k11",
+    "path": "/Users/jd/Documents/copilot-opt/vrp-copilot-benchmark/data/raw/cvrplib/X-n214-k11.vrp",
+    "source": "manual",
+    "url": null
+  },
+  {
+    "name": "X-n219-k73",
+    "path": "/Users/jd/Documents/copilot-opt/vrp-copilot-benchmark/data/raw/cvrplib/X-n219-k73.vrp",
+    "source": "manual",
+    "url": null
+  },
+  {
+    "name": "X-n228-k23",
+    "path": "/Users/jd/Documents/copilot-opt/vrp-copilot-benchmark/data/raw/cvrplib/X-n228-k23.vrp",
+    "source": "manual",
+    "url": null
+  },
+  {
+    "name": "X-n247-k50",
+    "path": "/Users/jd/Documents/copilot-opt/vrp-copilot-benchmark/data/raw/cvrplib/X-n247-k50.vrp",
+    "source": "manual",
+    "url": null
+  }
+]

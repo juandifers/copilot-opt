@@ -1,0 +1,56 @@
+# Phase 0 - Data ingestion configuration
+#
+# Controls which .vrp files are considered for the pilot.
+# The agent must NEVER download all of CVRPLIB. Manual-first ingestion.
+
+raw_dir: data/raw/cvrplib
+processed_dir: data/processed
+report_dir: reports/phase0
+
+# Pilot stratification target
+pilot:
+  total_target: 15
+  bins:
+    - name: small
+      n_min: 100
+      n_max: 150
+      count: 5
+    - name: medium
+      n_min: 150
+      n_max: 200
+      count: 5
+    - name: large
+      n_min: 200
+      n_max: 250
+      count: 5
+
+# Exclusions (Phase 0-1 only)
+exclude_families:
+  - Set XL
+  - VRPTW
+  - Solomon
+  - Gehring-Homberger
+  - job-shop
+  - facility-location
+
+# Optional fallback download (only used if raw_dir is empty).
+# The agent may prune this list to preserve diversity constraints.
+fallback_download:
+  enabled: true
+  # One-per-bin candidates from Uchoa X, plus alternates.
+  candidates:
+    - X-n101-k25
+    - X-n106-k14
+    - X-n110-k13
+    - X-n115-k10
+    - X-n120-k6
+    - X-n125-k30
+    - X-n129-k18
+    - X-n134-k13
+    - X-n139-k10
+    - X-n143-k7
+    - X-n148-k46
+    - X-n153-k22
+    - X-n157-k13
+    - X-n162-k11
+    - X-n167-k10

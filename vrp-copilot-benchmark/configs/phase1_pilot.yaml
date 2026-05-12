@@ -1,0 +1,59 @@
+# Phase 1 - Pilot configuration
+# Locked protocol choices (do not alter without recording a revision).
+
+backends:
+  cheap:
+    name: nearest_neighbor
+    params: {}
+  strong:
+    name: pyvrp
+    params:
+      time_limit_sec: 60
+      seeds: [1]
+
+observables:
+  top_k: 3
+  route_ranking: "route_distance_contribution"
+  assignment_metric: "adjusted_rand_index"
+
+# DO NOT CHANGE - locked in the research prompt.
+activation_thresholds:
+  nonzero_response:
+    objective_rel_change: 0.01
+    route_count_change: true
+  structural_response:
+    adjusted_rand_below: 0.95
+    route_count_change: true
+  backend_disagreement:
+    objective_gap_rel: 0.03
+    adjusted_rand_below: 0.90
+
+perturbations:
+  capacity_reduction:
+    enabled: true
+    factors: [0.9, 0.8]
+  demand_scaling:
+    enabled: false  # skeleton only
+    factors: [1.1, 1.2]
+  distance_inflation:
+    enabled: false  # skeleton only
+    factors: [1.05]
+
+outputs:
+  solutions_file: reports/phase1/solutions.jsonl
+  comparisons_file: reports/phase1/comparisons.csv
+  activation_file: reports/phase1/activation.csv
+  report_file: reports/phase1/phase1_pilot_report.md
+
+decision_rules:
+  proceed:
+    parse_rate_min: 0.80
+    pyvrp_usable: true
+    backend_structural_disagreement_required: true
+    perturbation_activation_min: 0.50
+  stop:
+    structural_activation_below: 0.50
+    pyvrp_bks_gap_above: 0.03  # affects most instances
+  revise:
+    structural_disagreement_below: 0.20
+    parse_failure_above: 0.20

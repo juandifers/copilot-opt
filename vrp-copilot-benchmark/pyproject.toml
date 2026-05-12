@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vrpbench"
+version = "0.1.0"
+description = "Compute-aware claim-level evaluation for VRP copilots"
+requires-python = ">=3.10"
+dependencies = [
+    "pyvrp>=0.9.0",
+    "vrplib>=1.3.0",
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "pydantic>=2.5",
+    "pyyaml>=6.0",
+    "tqdm>=4.66",
+    "matplotlib>=3.7",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

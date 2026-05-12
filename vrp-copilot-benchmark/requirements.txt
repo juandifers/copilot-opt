@@ -1,0 +1,9 @@
+pyvrp>=0.9.0
+vrplib>=1.3.0
+numpy>=1.24
+pandas>=2.0
+pydantic>=2.5
+pyyaml>=6.0
+tqdm>=4.66
+matplotlib>=3.7
+pytest>=8.0

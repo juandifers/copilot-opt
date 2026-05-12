@@ -1,0 +1,77 @@
+{
+  "action": "reuse_direct",
+  "by_claim_family": {
+    "objective_resource_delta": {
+      "n": 105,
+      "mean_error": 0.04804263522794415,
+      "median_error": 0.020883667014141426,
+      "p90_error": 0.13995625836128897,
+      "easy_pct": 69.52380952380952,
+      "medium_pct": 20.952380952380953,
+      "hard_pct": 9.523809523809524,
+      "infeasible_share": 0.5047619047619047
+    },
+    "topk_route_ranking": {
+      "n": 105,
+      "mean_error": 0.780952380952381,
+      "median_error": 1.0,
+      "p90_error": 1.0,
+      "easy_pct": 16.19047619047619,
+      "medium_pct": 14.285714285714286,
+      "hard_pct": 69.52380952380952,
+      "infeasible_share": 0.5047619047619047
+    },
+    "assignment_structure": {
+      "n": 105,
+      "mean_error": 0.4268089332585836,
+      "median_error": 0.4854091020471809,
+      "p90_error": 0.6657802207247949,
+      "easy_pct": 17.142857142857142,
+      "medium_pct": 3.8095238095238093,
+      "hard_pct": 79.04761904761905,
+      "infeasible_share": 0.5047619047619047
+    }
+  },
+  "by_perturbation": {
+    "capacity_reduction": {
+      "objective_resource_delta": {
+        "n": 60,
+        "mean_error": 0.07576907221545583
+      },
+      "topk_route_ranking": {
+        "n": 60,
+        "mean_error": 0.8777777777777779
+      },
+      "assignment_structure": {
+        "n": 60,
+        "mean_error": 0.5012752613884618
+      }
+    },
+    "regional_distance_inflation": {
+      "objective_resource_delta": {
+        "n": 45,
+        "mean_error": 0.011074052577928609
+      },
+      "topk_route_ranking": {
+        "n": 45,
+        "mean_error": 0.651851851851852
+      },
+      "assignment_structure": {
+        "n": 45,
+        "mean_error": 0.3275204957520794
+      }
+    }
+  },
+  "n_instances": 15,
+  "n_missing_baselines": 0,
+  "missing_baselines": [],
+  "n_missing_references": 0,
+  "missing_references": [],
+  "n_total_rows": 315,
+  "git_commit_hash": null,
+  "config_path": "experiments/phase3_information_sufficiency/phase3_config.yaml",
+  "source_dataset": "cvrplib_uchoa_X_15",
+  "pyvrp_version": "0.13.3",
+  "phase3_run_id": "00bfc945965f",
+  "timestamp": "2026-04-28T17:45:54Z"
+}

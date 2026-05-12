@@ -1,0 +1,466 @@
+{
+  "lambdas": [
+    0.0,
+    0.0001,
+    0.001,
+    0.01,
+    0.05,
+    0.1,
+    0.5,
+    1.0,
+    5.0,
+    10.0
+  ],
+  "claim_families": [
+    "objective_resource_delta",
+    "topk_route_ranking",
+    "assignment_structure"
+  ],
+  "actions": [
+    "reuse_direct",
+    "nearest_neighbor",
+    "clarke_wright",
+    "pyvrp_10s",
+    "pyvrp_60s"
+  ],
+  "by_lambda_and_family": {
+    "0.0|objective_resource_delta": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 4.761904761904762,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 23.809523809523807,
+        "pyvrp_60s": 71.42857142857143
+      },
+      "mean_objective": 0.0
+    },
+    "0.0|topk_route_ranking": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 16.19047619047619,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 26.666666666666668,
+        "pyvrp_60s": 57.14285714285714
+      },
+      "mean_objective": 0.0
+    },
+    "0.0|assignment_structure": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 10.476190476190476,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 20.952380952380953,
+        "pyvrp_60s": 68.57142857142857
+      },
+      "mean_objective": 0.0
+    },
+    "0.0001|objective_resource_delta": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 19.047619047619047,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 76.19047619047619,
+        "pyvrp_60s": 4.761904761904762
+      },
+      "mean_objective": 0.0022563146602009054
+    },
+    "0.0001|topk_route_ranking": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 16.19047619047619,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 26.666666666666668,
+        "pyvrp_60s": 57.14285714285714
+      },
+      "mean_objective": 0.003696582039053818
+    },
+    "0.0001|assignment_structure": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 10.476190476190476,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 20.952380952380953,
+        "pyvrp_60s": 68.57142857142857
+      },
+      "mean_objective": 0.004325253932984336
+    },
+    "0.001|objective_resource_delta": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 40.95238095238095,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.9523809523809524,
+        "pyvrp_10s": 58.0952380952381,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.008462897380672126
+    },
+    "0.001|topk_route_ranking": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 16.19047619047619,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 26.666666666666668,
+        "pyvrp_60s": 57.14285714285714
+      },
+      "mean_objective": 0.03696582039053818
+    },
+    "0.001|assignment_structure": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 12.380952380952381,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 25.71428571428571,
+        "pyvrp_60s": 61.904761904761905
+      },
+      "mean_objective": 0.04198546189553527
+    },
+    "0.01|objective_resource_delta": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 71.42857142857143,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 28.57142857142857,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.0245526464822573
+    },
+    "0.01|topk_route_ranking": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 18.095238095238095,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.9523809523809524,
+        "pyvrp_10s": 37.142857142857146,
+        "pyvrp_60s": 43.80952380952381
+      },
+      "mean_objective": 0.34457278178217965
+    },
+    "0.01|assignment_structure": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 34.285714285714285,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.9523809523809524,
+        "pyvrp_10s": 60.952380952380956,
+        "pyvrp_60s": 3.8095238095238098
+      },
+      "mean_objective": 0.2735730045832164
+    },
+    "0.05|objective_resource_delta": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 71.42857142857143,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 28.57142857142857,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.024687048149078235
+    },
+    "0.05|topk_route_ranking": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 62.857142857142854,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 4.761904761904762,
+        "pyvrp_10s": 32.38095238095238,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.6446961594826268
+    },
+    "0.05|assignment_structure": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 82.85714285714286,
+        "nearest_neighbor": 0.9523809523809524,
+        "clarke_wright": 10.476190476190476,
+        "pyvrp_10s": 5.714285714285714,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.41154587014083865
+    },
+    "0.1|objective_resource_delta": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 72.38095238095238,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 27.61904761904762,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.024854970939375463
+    },
+    "0.1|topk_route_ranking": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 94.28571428571428,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 5.714285714285714,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.7556456944854958
+    },
+    "0.1|assignment_structure": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 86.66666666666667,
+        "nearest_neighbor": 0.9523809523809524,
+        "clarke_wright": 12.380952380952381,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.4158660493785442
+    },
+    "0.5|objective_resource_delta": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 73.33333333333333,
+        "nearest_neighbor": 0.9523809523809524,
+        "clarke_wright": 25.71428571428571,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.02612734469176978
+    },
+    "0.5|topk_route_ranking": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 94.28571428571428,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 5.714285714285714,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.7560062502052576
+    },
+    "0.5|assignment_structure": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 86.66666666666667,
+        "nearest_neighbor": 0.9523809523809524,
+        "clarke_wright": 12.380952380952381,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.4164370680998316
+    },
+    "1.0|objective_resource_delta": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 73.33333333333333,
+        "nearest_neighbor": 0.9523809523809524,
+        "clarke_wright": 25.71428571428571,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.02764124706966135
+    },
+    "1.0|topk_route_ranking": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 94.28571428571428,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 5.714285714285714,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.7564569448549595
+    },
+    "1.0|assignment_structure": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 87.61904761904762,
+        "nearest_neighbor": 0.9523809523809524,
+        "clarke_wright": 11.428571428571429,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.4170078043282674
+    },
+    "5.0|objective_resource_delta": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 81.9047619047619,
+        "nearest_neighbor": 2.857142857142857,
+        "clarke_wright": 15.238095238095239,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.03679343532555942
+    },
+    "5.0|topk_route_ranking": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 94.28571428571428,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 5.714285714285714,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.7600625020525758
+    },
+    "5.0|assignment_structure": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 92.38095238095238,
+        "nearest_neighbor": 0.9523809523809524,
+        "clarke_wright": 6.666666666666667,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.42047767942232
+    },
+    "10.0|objective_resource_delta": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 91.42857142857143,
+        "nearest_neighbor": 3.8095238095238098,
+        "clarke_wright": 4.761904761904762,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.04224902213976848
+    },
+    "10.0|topk_route_ranking": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 95.23809523809523,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 4.761904761904762,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.7643819881950519
+    },
+    "10.0|assignment_structure": {
+      "n": 105,
+      "shares_pct": {
+        "reuse_direct": 94.28571428571428,
+        "nearest_neighbor": 0.9523809523809524,
+        "clarke_wright": 4.761904761904762,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      },
+      "mean_objective": 0.4224115065663872
+    }
+  },
+  "by_lambda_overall": {
+    "0.0": {
+      "n": 315,
+      "shares_pct": {
+        "reuse_direct": 10.476190476190476,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 23.809523809523807,
+        "pyvrp_60s": 65.71428571428571
+      }
+    },
+    "0.0001": {
+      "n": 315,
+      "shares_pct": {
+        "reuse_direct": 15.238095238095239,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.0,
+        "pyvrp_10s": 41.269841269841265,
+        "pyvrp_60s": 43.492063492063494
+      }
+    },
+    "0.001": {
+      "n": 315,
+      "shares_pct": {
+        "reuse_direct": 23.174603174603174,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 0.31746031746031744,
+        "pyvrp_10s": 36.82539682539683,
+        "pyvrp_60s": 39.682539682539684
+      }
+    },
+    "0.01": {
+      "n": 315,
+      "shares_pct": {
+        "reuse_direct": 41.269841269841265,
+        "nearest_neighbor": 0.0,
+        "clarke_wright": 10.158730158730158,
+        "pyvrp_10s": 32.698412698412696,
+        "pyvrp_60s": 15.873015873015872
+      }
+    },
+    "0.05": {
+      "n": 315,
+      "shares_pct": {
+        "reuse_direct": 72.38095238095238,
+        "nearest_neighbor": 0.31746031746031744,
+        "clarke_wright": 14.603174603174605,
+        "pyvrp_10s": 12.698412698412698,
+        "pyvrp_60s": 0.0
+      }
+    },
+    "0.1": {
+      "n": 315,
+      "shares_pct": {
+        "reuse_direct": 84.44444444444444,
+        "nearest_neighbor": 0.31746031746031744,
+        "clarke_wright": 15.238095238095239,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      }
+    },
+    "0.5": {
+      "n": 315,
+      "shares_pct": {
+        "reuse_direct": 84.76190476190476,
+        "nearest_neighbor": 0.6349206349206349,
+        "clarke_wright": 14.603174603174605,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      }
+    },
+    "1.0": {
+      "n": 315,
+      "shares_pct": {
+        "reuse_direct": 85.07936507936508,
+        "nearest_neighbor": 0.6349206349206349,
+        "clarke_wright": 14.285714285714285,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      }
+    },
+    "5.0": {
+      "n": 315,
+      "shares_pct": {
+        "reuse_direct": 89.52380952380953,
+        "nearest_neighbor": 1.2698412698412698,
+        "clarke_wright": 9.206349206349207,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      }
+    },
+    "10.0": {
+      "n": 315,
+      "shares_pct": {
+        "reuse_direct": 93.65079365079364,
+        "nearest_neighbor": 1.5873015873015872,
+        "clarke_wright": 4.761904761904762,
+        "pyvrp_10s": 0.0,
+        "pyvrp_60s": 0.0
+      }
+    }
+  },
+  "git_commit_hash": null,
+  "config_path": "experiments/phase3_information_sufficiency/phase3_config.yaml",
+  "source_dataset": "cvrplib_uchoa_X_15",
+  "pyvrp_version": "0.13.3",
+  "phase3_run_id": "00bfc945965f",
+  "timestamp": "2026-04-28T17:45:54Z"
+}
