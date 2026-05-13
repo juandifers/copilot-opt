@@ -1,0 +1,75 @@
+# VRPTW Stage A roster: 56 Solomon-100 instances (the full eligible pool).
+#
+# Source: Solomon (1987) VRPTW benchmark, 100-customer variants.
+# Distribution: PyVRP/Instances GitHub mirror (CVRPLIB-extended .vrp format).
+#
+# Selection: every Solomon-100 instance with C / C2 / R1 / R2 / RC1 / RC2
+# clustering geometry and a 100-customer count is included. No filtering.
+#
+# Counts per series:
+#   C1:  9   (C101–C109)
+#   C2:  8   (C201–C208)
+#   R1: 12   (R101–R112)
+#   R2: 11   (R201–R211)
+#   RC1: 8   (RC101–RC108)
+#   RC2: 8   (RC201–RC208)
+#   Total: 56
+#
+# Format: one instance ID per line; blank lines and # comments are ignored.
+
+C101
+C102
+C103
+C104
+C105
+C106
+C107
+C108
+C109
+C201
+C202
+C203
+C204
+C205
+C206
+C207
+C208
+R101
+R102
+R103
+R104
+R105
+R106
+R107
+R108
+R109
+R110
+R111
+R112
+R201
+R202
+R203
+R204
+R205
+R206
+R207
+R208
+R209
+R210
+R211
+RC101
+RC102
+RC103
+RC104
+RC105
+RC106
+RC107
+RC108
+RC201
+RC202
+RC203
+RC204
+RC205
+RC206
+RC207
+RC208
