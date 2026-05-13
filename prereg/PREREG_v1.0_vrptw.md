@@ -3,7 +3,9 @@
 **Status:** LOCKED v1.0 — no further changes without versioned amendment.
 **Author:** Juan
 **Date drafted:** 2026-05-14
-**Date locked:** 2026-05-14 (commit hash + timestamp recorded in the next commit, per §16.4)
+**Date locked:** 2026-05-14T00:24:20+02:00
+**Lock commit:** `09c4c03fa087c4b0b9d568f1de258e94ee003ef5`
+**Lock tag:** `prereg-v1.0-vrptw`
 **Locking procedure:** see Section 16.
 
 > This is the locked v1.0 pre-registration for the VRPTW track. It is not an amendment of `PREREG_v0.5.md`. The CVRP pre-registration remains the locked specification for the CVRP track. See §19 for the relationship between v0.5 (CVRP) and v1.0 (VRPTW) and the documented reason for the pivot.
