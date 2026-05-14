@@ -7,7 +7,7 @@
 **Date locked (v1.1):** 2026-05-14
 **v1.0 lock commit:** `09c4c03fa087c4b0b9d568f1de258e94ee003ef5`
 **v1.0 lock tag:** `prereg-v1.0-vrptw`
-**v1.1 lock commit:** *(recorded at the next commit after this file, per §16.4)*
+**v1.1 lock commit:** `7d9cf08`
 **v1.1 lock tag:** `prereg-v1.1-vrptw`
 **Locking procedure:** see Section 16. **Amendment procedure:** see Section 17.
 
