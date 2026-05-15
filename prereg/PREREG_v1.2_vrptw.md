@@ -10,7 +10,7 @@
 **v1.0 lock tag:** `prereg-v1.0-vrptw`
 **v1.1 lock commit:** `7d9cf08`
 **v1.1 lock tag:** `prereg-v1.1-vrptw`
-**v1.2 lock commit:** (recorded after the lock commit lands)
+**v1.2 lock commit:** `274163a`
 **v1.2 lock tag:** `prereg-v1.2-vrptw`
 **Locking procedure:** see Section 16. **Amendment procedure:** see Section 17.
 
