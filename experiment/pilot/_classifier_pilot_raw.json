@@ -1,0 +1,142 @@
+{
+  "n_prompts": 12,
+  "n_correct": 12,
+  "accuracy": 1.0,
+  "confusion_matrix": {
+    "OBJ": {
+      "OBJ": 3,
+      "PLAN_VALIDITY": 0,
+      "STRUCT": 0,
+      "SCHEDULE": 0
+    },
+    "PLAN_VALIDITY": {
+      "OBJ": 0,
+      "PLAN_VALIDITY": 3,
+      "STRUCT": 0,
+      "SCHEDULE": 0
+    },
+    "STRUCT": {
+      "OBJ": 0,
+      "PLAN_VALIDITY": 0,
+      "STRUCT": 3,
+      "SCHEDULE": 0
+    },
+    "SCHEDULE": {
+      "OBJ": 0,
+      "PLAN_VALIDITY": 0,
+      "STRUCT": 0,
+      "SCHEDULE": 3
+    }
+  },
+  "log_path": "/Users/jd/Documents/copilot-opt/experiment/logs/classifier/pilot_2026-05-18_180703.jsonl",
+  "results": [
+    {
+      "prompt_id": "OBJ_01",
+      "true_family": "OBJ",
+      "predicted_family": "OBJ",
+      "correct": true,
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 9923,
+      "prompt_text": "What's the total cost on the current draft?"
+    },
+    {
+      "prompt_id": "OBJ_02",
+      "true_family": "OBJ",
+      "predicted_family": "OBJ",
+      "correct": true,
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 9224,
+      "prompt_text": "How much more distance did we add with this change?"
+    },
+    {
+      "prompt_id": "OBJ_03",
+      "true_family": "OBJ",
+      "predicted_family": "OBJ",
+      "correct": true,
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 9490,
+      "prompt_text": "Did the cost go up or down compared to yesterday's plan?"
+    },
+    {
+      "prompt_id": "PV_01",
+      "true_family": "PLAN_VALIDITY",
+      "predicted_family": "PLAN_VALIDITY",
+      "correct": true,
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 9308,
+      "prompt_text": "Is everything still feasible after the depot move?"
+    },
+    {
+      "prompt_id": "PV_02",
+      "true_family": "PLAN_VALIDITY",
+      "predicted_family": "PLAN_VALIDITY",
+      "correct": true,
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 9404,
+      "prompt_text": "Are there any customers we can't serve right now?"
+    },
+    {
+      "prompt_id": "PV_03",
+      "true_family": "PLAN_VALIDITY",
+      "predicted_family": "PLAN_VALIDITY",
+      "correct": true,
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 8850,
+      "prompt_text": "Can we actually execute this plan or did something break?"
+    },
+    {
+      "prompt_id": "STRUCT_01",
+      "true_family": "STRUCT",
+      "predicted_family": "STRUCT",
+      "correct": true,
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 7202,
+      "prompt_text": "How many trucks does this need?"
+    },
+    {
+      "prompt_id": "STRUCT_02",
+      "true_family": "STRUCT",
+      "predicted_family": "STRUCT",
+      "correct": true,
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 14171,
+      "prompt_text": "Which route is customer 42 on now?"
+    },
+    {
+      "prompt_id": "STRUCT_03",
+      "true_family": "STRUCT",
+      "predicted_family": "STRUCT",
+      "correct": true,
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 9032,
+      "prompt_text": "Did we end up with the same number of vehicles as before?"
+    },
+    {
+      "prompt_id": "SCHEDULE_01",
+      "true_family": "SCHEDULE",
+      "predicted_family": "SCHEDULE",
+      "correct": true,
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 9117,
+      "prompt_text": "Are we going to miss any windows?"
+    },
+    {
+      "prompt_id": "SCHEDULE_02",
+      "true_family": "SCHEDULE",
+      "predicted_family": "SCHEDULE",
+      "correct": true,
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 8613,
+      "prompt_text": "When does route 3 get back to the yard?"
+    },
+    {
+      "prompt_id": "SCHEDULE_03",
+      "true_family": "SCHEDULE",
+      "predicted_family": "SCHEDULE",
+      "correct": true,
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 9620,
+      "prompt_text": "How late will the morning stops be running?"
+    }
+  ]
+}

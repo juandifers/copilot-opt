@@ -1,0 +1,293 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "SOLUTION DATA payload schemas, one per claim family. Closed schemas (additionalProperties: false) so the answer generator never sees fields outside the family's claim. Times and distances are in published Solomon units (the solver's scaled units divided by SCALING_FACTOR=10). Identifying metadata (instance_id, perturbation_id, action_name) lives in the prompt's CONTEXT block, not the payload, so the generator cannot accidentally re-state context as evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["OBJ", "PV", "STRUCT", "SCHEDULE"],
+
+  "properties": {
+
+    "OBJ": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OBJ payload — objective value and delta vs baseline",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["units", "action_objective", "baseline_objective", "objective_delta_absolute", "objective_delta_percent"],
+      "properties": {
+        "units": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["objective"],
+          "properties": {
+            "objective": {
+              "type": "string",
+              "enum": ["solomon_distance"],
+              "description": "Constant tag so the generator names the unit. Solomon distance = total route length in the published unit system (solver's int distance / SCALING_FACTOR=10)."
+            }
+          }
+        },
+        "action_objective": {
+          "type": "number",
+          "description": "EvaluatedVRPTW.objective from the action that ran, divided by SCALING_FACTOR and rounded to 2 decimals. This is the number the operational-validity check compares against (within 0.5%)."
+        },
+        "baseline_objective": {
+          "type": "number",
+          "description": "Pre-perturbation objective for the same instance, sourced from Stage A's baseline_obj column (already in unscaled / published units, rounded to 2 decimals). Lets the generator answer 'how much did distance change' without doing arithmetic in tokens."
+        },
+        "objective_delta_absolute": {
+          "type": "number",
+          "description": "action_objective - baseline_objective, rounded to 2 decimals. Precomputed so the generator does not compute it inline."
+        },
+        "objective_delta_percent": {
+          "type": "number",
+          "description": "100 * (action_objective - baseline_objective) / baseline_objective, rounded to 2 decimals. Same rationale as delta_absolute."
+        }
+      },
+      "examples": [
+        {
+          "units": {"objective": "solomon_distance"},
+          "action_objective": 934.30,
+          "baseline_objective": 828.94,
+          "objective_delta_absolute": 105.36,
+          "objective_delta_percent": 12.71
+        }
+      ]
+    },
+
+    "PV": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PV payload — plan validity (feasibility) and the reason it fails",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feasible", "feasibility_breakdown", "infeasibility_kind", "n_unserved_customers", "unserved_customer_ids"],
+      "properties": {
+        "feasible": {
+          "type": "boolean",
+          "description": "EvaluatedVRPTW.feasible. This is the bit the operational-validity check matches against."
+        },
+        "feasibility_breakdown": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["capacity_ok", "time_windows_ok", "coverage_ok"],
+          "properties": {
+            "capacity_ok": {
+              "type": "boolean",
+              "description": "EvaluatedVRPTW.feasible_capacity_only — would the routes be capacity-feasible ignoring TW."
+            },
+            "time_windows_ok": {
+              "type": "boolean",
+              "description": "EvaluatedVRPTW.feasible_tw_only — would the routes be TW-feasible ignoring capacity."
+            },
+            "coverage_ok": {
+              "type": "boolean",
+              "description": "EvaluatedVRPTW.is_complete — every instance customer is served."
+            }
+          },
+          "description": "Three booleans the generator can cite when asked 'why is the plan infeasible'."
+        },
+        "infeasibility_kind": {
+          "type": "string",
+          "enum": ["none", "capacity", "time_window", "both", "coverage"],
+          "description": "Output of vrp_copilot_bench.vrptw.evaluation.infeasibility_kind(ev). Encodes the same information as feasibility_breakdown but in the categorical label Stage A uses, so the generator can phrase the answer in either form."
+        },
+        "n_unserved_customers": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Length of EvaluatedVRPTW.unserved_customers. Headline number for coverage-failure questions."
+        },
+        "unserved_customer_ids": {
+          "type": "array",
+          "items": {"type": "integer", "minimum": 1},
+          "description": "EvaluatedVRPTW.unserved_customers verbatim. Empty list when coverage_ok=true. Lets the generator list IDs without inventing them."
+        }
+      },
+      "examples": [
+        {
+          "feasible": false,
+          "feasibility_breakdown": {
+            "capacity_ok": true,
+            "time_windows_ok": true,
+            "coverage_ok": false
+          },
+          "infeasibility_kind": "coverage",
+          "n_unserved_customers": 1,
+          "unserved_customer_ids": [101]
+        }
+      ]
+    },
+
+    "STRUCT": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "STRUCT payload — route count and per-route customer sequence",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n_routes", "routes"],
+      "properties": {
+        "n_routes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "len(EvaluatedVRPTW.routes) — count of non-empty routes. Headline number for route-count questions; the operational-validity check compares this for exact equality."
+        },
+        "routes": {
+          "type": "array",
+          "description": "EvaluatedVRPTW.routes as a list of route descriptors. Order is the solver's route enumeration order (route_idx). Customer IDs are integers in visit order. Supplies both the 'how many routes' answer (via length) and the 'which route serves customer X' / 'are A and B on the same route' answers (via lookup).",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["route_idx", "customer_ids"],
+            "properties": {
+              "route_idx": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "RouteSummary.route_idx. Stable across the action's other outputs (matches keys in route_costs and route_summaries)."
+              },
+              "customer_ids": {
+                "type": "array",
+                "items": {"type": "integer", "minimum": 1},
+                "minItems": 1,
+                "description": "Customer IDs visited on this route, in order. Depot (0) is not included."
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "n_routes": 3,
+          "routes": [
+            {"route_idx": 0, "customer_ids": [43, 42, 41, 40, 44, 46, 45]},
+            {"route_idx": 1, "customer_ids": [5, 3, 7, 8, 10, 11, 9, 6, 4, 2, 1, 75]},
+            {"route_idx": 2, "customer_ids": [101, 77, 79]}
+          ]
+        }
+      ]
+    },
+
+    "SCHEDULE": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SCHEDULE payload — per-customer timing and route-end times",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["units", "n_late_customers", "late_customer_ids", "route_end_times", "customer_schedule"],
+      "properties": {
+        "units": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["time"],
+          "properties": {
+            "time": {
+              "type": "string",
+              "enum": ["solomon_minutes"],
+              "description": "Constant tag. All time fields are PyVRP's scaled values divided by SCALING_FACTOR=10, rounded to 1 decimal — i.e., Solomon-native minutes."
+            }
+          }
+        },
+        "n_late_customers": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Sum of RouteSummary.n_late_customers over routes (= EvaluatedVRPTW.n_late_customers). Headline number for 'how many customers are late'."
+        },
+        "late_customer_ids": {
+          "type": "array",
+          "items": {"type": "integer", "minimum": 1},
+          "description": "Customer IDs for which VisitSchedule.time_warp > 0. Precomputed here because PyVRP does not emit a 'late_customers_list' directly — see rationale doc."
+        },
+        "route_end_times": {
+          "type": "array",
+          "description": "One entry per route, projected from RouteSummary. Supports 'what time does route X finish' questions and route-end-disruption claims.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["route_idx", "end_time", "has_time_warp"],
+            "properties": {
+              "route_idx": {"type": "integer", "minimum": 0},
+              "end_time": {
+                "type": "number",
+                "description": "RouteSummary.end_time / SCALING_FACTOR, rounded to 1 decimal (Solomon minutes)."
+              },
+              "has_time_warp": {
+                "type": "boolean",
+                "description": "RouteSummary.has_time_warp — whether this route violates any time window."
+              }
+            }
+          }
+        },
+        "customer_schedule": {
+          "type": "array",
+          "description": "Full per-customer schedule projected from EvaluatedVRPTW.per_customer_schedule. Included in entirety (one entry per served customer) so the generator can answer questions about any specific customer without inventing IDs. ORDER_CHANGE customers that the action failed to serve do not appear here; they are not addressable for SCHEDULE claims under this action.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["customer_id", "route_idx", "arrival", "start_service", "end_service", "tw_early", "tw_late", "is_late", "lateness_minutes"],
+            "properties": {
+              "customer_id": {"type": "integer", "minimum": 1},
+              "route_idx": {"type": "integer", "minimum": 0},
+              "arrival": {
+                "type": "number",
+                "description": "VisitSchedule.arrival / SCALING_FACTOR, rounded to 1 decimal."
+              },
+              "start_service": {
+                "type": "number",
+                "description": "VisitSchedule.start_service / SCALING_FACTOR, rounded to 1 decimal. The op-validity check (within 1 minute) is over this field."
+              },
+              "end_service": {
+                "type": "number",
+                "description": "VisitSchedule.end_service / SCALING_FACTOR, rounded to 1 decimal."
+              },
+              "tw_early": {
+                "type": "number",
+                "description": "VisitSchedule.tw_early / SCALING_FACTOR. Lets the generator say 'before the window opens at T' truthfully."
+              },
+              "tw_late": {
+                "type": "number",
+                "description": "VisitSchedule.tw_late / SCALING_FACTOR. Lets the generator say 'window closed at T'."
+              },
+              "is_late": {
+                "type": "boolean",
+                "description": "True iff VisitSchedule.time_warp > 0. Derived; not in raw PyVRP output."
+              },
+              "lateness_minutes": {
+                "type": "number",
+                "minimum": 0,
+                "description": "VisitSchedule.time_warp / SCALING_FACTOR, rounded to 1 decimal. Zero when on time."
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "units": {"time": "solomon_minutes"},
+          "n_late_customers": 1,
+          "late_customer_ids": [78],
+          "route_end_times": [
+            {"route_idx": 0, "end_time": 1234.8, "has_time_warp": false},
+            {"route_idx": 1, "end_time": 1139.5, "has_time_warp": false},
+            {"route_idx": 4, "end_time": 910.5, "has_time_warp": true}
+          ],
+          "customer_schedule": [
+            {
+              "customer_id": 43, "route_idx": 0,
+              "arrival": 16.6, "start_service": 16.6, "end_service": 106.6,
+              "tw_early": 16.0, "tw_late": 80.0,
+              "is_late": false, "lateness_minutes": 0.0
+            },
+            {
+              "customer_id": 78, "route_idx": 4,
+              "arrival": 168.0, "start_service": 168.0, "end_service": 258.0,
+              "tw_early": 109.0, "tw_late": 170.0,
+              "is_late": false, "lateness_minutes": 0.0
+            },
+            {
+              "customer_id": 101, "route_idx": 10,
+              "arrival": 453.0, "start_service": 453.0, "end_service": 543.0,
+              "tw_early": 392.0, "tw_late": 453.0,
+              "is_late": false, "lateness_minutes": 0.0
+            }
+          ]
+        }
+      ]
+    }
+
+  }
+}

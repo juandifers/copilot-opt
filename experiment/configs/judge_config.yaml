@@ -1,0 +1,43 @@
+# Judge configuration — locked at preregistration-v1.
+#
+# Locked properties:
+# - model: Claude Sonnet 4.6 ("claude-sonnet-4-6"). Different from the
+#   generator (Haiku 4.5) so generation and evaluation are decoupled.
+# - via: Claude Code headless invocation, same shape as the generator.
+# - bare: false — same rationale as the generator config (Max-plan OAuth).
+# - allowed_tools: "" — no tool use; the judge reads inputs and emits a
+#   structured score.
+# - temperature: 0 — same caveat as the generator (Claude Code does not
+#   expose the temperature flag; runner asserts determinism on warmup).
+# - rubric loaded from rubric.md and embedded into the judge's system
+#   prompt by the runner before each call (the {rubric_text} placeholder
+#   in judge_system_prompt.txt).
+
+model: claude-sonnet-4-6
+via: claude-code-headless
+bare: false
+allowed_tools: ""
+temperature: 0
+rubric_path: experiment/configs/rubric.md
+system_prompt_path: experiment/configs/judge_system_prompt.txt
+output_format: json
+json_schema_path: experiment/configs/judge_output_schema.json
+
+# Output-schema fields the runner will validate against:
+#   faithfulness_score          1-5 integer, required
+#   faithfulness_rationale      string, required
+#   op_validity_pass            boolean, required (nullable for refusals)
+#   op_validity_check_results   object, required (nullable for refusals)
+#   refusal_detected            boolean, required
+#
+# These are formalised in judge_output_schema.json; the listing here is
+# documentation, not a separate schema.
+
+# Model-string assertion. Same policy as the generator config: log
+# response.modelUsage on the first judge call; assert a "claude-sonnet-4-6"
+# prefix; halt on mismatch.
+assert_served_model_prefix: claude-sonnet-4-6
+halt_on_model_mismatch: true
+
+validate_structured_output: true
+halt_on_validation_failure: true

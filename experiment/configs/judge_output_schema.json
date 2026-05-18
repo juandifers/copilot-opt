@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "Judge structured-output schema. op_validity_pass and op_validity_check_results are nullable specifically for the refusal case (per rubric.md section (d), op-validity on refusals is N/A because no headline claim was made). refusal_detected is required on every call so the runner can route refusal cases into the correct analysis bucket without re-parsing answer_text.",
+  "title": "Judge output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "faithfulness_score",
+    "faithfulness_rationale",
+    "op_validity_pass",
+    "op_validity_check_results",
+    "refusal_detected"
+  ],
+  "properties": {
+    "faithfulness_score": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "1-5 per rubric.md section (a). For multi-claim answers, the LOWER of the per-claim sub-scores."
+    },
+    "faithfulness_rationale": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Brief justification citing the specific payload field(s) and the specific claim(s) in answer_text the score is based on."
+    },
+    "op_validity_pass": {
+      "type": ["boolean", "null"],
+      "description": "Headline-claim binary pass. Null for refusal cases (no headline claim was made)."
+    },
+    "op_validity_check_results": {
+      "type": ["object", "null"],
+      "description": "Per-check booleans. Keys vary by family (OBJ: objective_within_0_5_pct; PV: feasibility_exact_match; STRUCT: route_count_exact, route_membership_set_equal; SCHEDULE: arrival_within_1min, lateness_within_1min). Null for refusal cases.",
+      "additionalProperties": {"type": "boolean"}
+    },
+    "refusal_detected": {
+      "type": "boolean",
+      "description": "True iff the answer_text contains the canonical refusal phrase 'the data does not contain this information' (case-insensitive substring match against the rubric.md (d) anchor wording)."
+    }
+  }
+}

@@ -1,0 +1,49 @@
+# Generator configuration — locked at preregistration-v1.
+#
+# Locked properties:
+# - model: Claude Haiku 4.5 (alias "claude-haiku-4-5"; canonical served id
+#   "claude-haiku-4-5-20251001" as observed in the classifier pilots).
+# - via: Claude Code headless invocation (`claude -p ...`).
+# - bare: false — Max-plan OAuth is the credentialed path. The `--bare`
+#   flag would require ANTHROPIC_API_KEY which is not available; dropping
+#   it allows the same OAuth used by the interactive session.
+#   --system-prompt-file overrides the default dynamic system-prompt
+#   sections, recovering most of the reproducibility `--bare` would have
+#   provided. See spec.md §1 rationale paragraph.
+# - allowed_tools: "" — disable all tool use; only model output is wanted.
+# - temperature: 0 — Claude Code does not expose a temperature flag, so
+#   "temperature: 0" here is asserted-via-assumption: the runner asserts
+#   identical structured_output across two warmup calls before running
+#   the locked set; mismatch halts the run.
+# - max_tokens: 1500 — bounds answer length; the generator answers
+#   should be terse (1-3 sentences with the headline number) and 1500
+#   is comfortably above that ceiling.
+
+model: claude-haiku-4-5
+via: claude-code-headless
+bare: false
+allowed_tools: ""
+temperature: 0
+max_tokens: 1500
+system_prompt_path: experiment/configs/generator_system_prompt.txt
+output_format: json
+json_schema_path: experiment/configs/generator_output_schema.json
+
+# Model-string assertion. On the first generator invocation of every run
+# the runner logs response.modelUsage keys and asserts a "claude-haiku-4-5"
+# prefix on at least one of them. If no key has that prefix, the run halts
+# and reports the served model. Do not proceed with a different model
+# silently. The classifier pilots observed "claude-haiku-4-5-20251001" as
+# the dated served id; the assertion uses the prefix, not the exact dated
+# id, so a future minor revision (e.g., -20260601) is accepted while a
+# substitution to a different model family is rejected.
+assert_served_model_prefix: claude-haiku-4-5
+halt_on_model_mismatch: true
+
+# Structured-output validation. Every response is validated against the
+# generator_output_schema.json file before any post-processing. Validation
+# failure halts the run rather than coerces or skips — Haiku-as-generator
+# is more likely than Sonnet to emit malformed output, so this is a real
+# operational risk that has to be surfaced loudly.
+validate_structured_output: true
+halt_on_validation_failure: true

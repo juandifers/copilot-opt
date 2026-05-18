@@ -1,0 +1,13 @@
+prompt_id,true_family,prompt_text,boundary_pair,boundary_rationale
+BPS_01,PLAN_VALIDITY,Will customer 42 still get a delivery today?,PV_SCHEDULE,Headline claim is coverage (is the customer served at all); no timing implied. Answer reads off unserved_customer_ids.
+BPS_02,SCHEDULE,Will customer 42 still get a delivery on time today?,PV_SCHEDULE,Same customer-level question with timing modifier (on time). Answer reads off customer_schedule[42].is_late.
+BPS_03,PLAN_VALIDITY,Are there any stops we couldn't fit in?,PV_SCHEDULE,Coverage-only question (fit in = serve); no timing. Answer reads off n_unserved_customers.
+BSS_01,STRUCT,What's the order of stops on route 5?,STRUCT_SCHEDULE,Asks for visit sequence on a route; answer is the customer_ids list for route 5. No clock times required.
+BSS_02,SCHEDULE,What time does route 5 hit each stop?,STRUCT_SCHEDULE,Same route but the headline claim is per-stop arrival times. Answer reads off customer_schedule entries for route_idx=5.
+BSS_03,STRUCT,Does route 5 visit customer 12 before or after customer 17?,STRUCT_SCHEDULE,Visit order on a route. Before/after is sequence-position language; answer comes from the customer_ids list ordering. No timing payload needed.
+BOS_01,OBJ,Did this end up costing more?,OBJ_STRUCT,Headline claim is total cost. Answer reads off objective_delta_absolute.
+BOS_02,STRUCT,Did this need more trucks?,OBJ_STRUCT,Headline claim is vehicle count. Answer reads off n_routes vs baseline_n_routes.
+BPVS_01,STRUCT,Did the number of vehicles go up?,PV_STRUCT,Route count question. Answer reads off n_routes.
+BPVS_02,PLAN_VALIDITY,Did we exceed capacity anywhere?,PV_STRUCT,Capacity overload is a feasibility breakdown. Answer reads off feasibility_breakdown.capacity_ok.
+BOC_01,OBJ,How much longer overall is the new plan compared to yesterday?,OBJ_SCHEDULE,Aggregated total duration vs baseline. Per the family definitions in the system prompt total duration is OBJ; SCHEDULE covers per-customer or per-route timing, not aggregates.
+BOC_02,SCHEDULE,Will we still finish the last delivery before 6pm?,OBJ_SCHEDULE,Specific clock-time check on a route end. Answer reads off route_end_times.

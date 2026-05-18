@@ -1,0 +1,13 @@
+prompt_id,true_family,prompt_text
+OBJ_01,OBJ,What's the total cost on the current draft?
+OBJ_02,OBJ,How much more distance did we add with this change?
+OBJ_03,OBJ,Did the cost go up or down compared to yesterday's plan?
+PV_01,PLAN_VALIDITY,Is everything still feasible after the depot move?
+PV_02,PLAN_VALIDITY,Are there any customers we can't serve right now?
+PV_03,PLAN_VALIDITY,Can we actually execute this plan or did something break?
+STRUCT_01,STRUCT,How many trucks does this need?
+STRUCT_02,STRUCT,Which route is customer 42 on now?
+STRUCT_03,STRUCT,Did we end up with the same number of vehicles as before?
+SCHEDULE_01,SCHEDULE,Are we going to miss any windows?
+SCHEDULE_02,SCHEDULE,When does route 3 get back to the yard?
+SCHEDULE_03,SCHEDULE,How late will the morning stops be running?

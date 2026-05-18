@@ -1,0 +1,34 @@
+# Classifier configuration — locked at preregistration-v1.
+#
+# This config locks the zero-shot classifier validated across three pilots.
+# See iteration_evidence_path for the full timeline. Few-shot was tested
+# and reverted as an isomorphic regression rather than a strict-Pareto
+# improvement.
+
+model: claude-haiku-4-5
+via: claude-code-headless
+bare: false
+allowed_tools: ""
+temperature: 0
+prompt_style: zero-shot
+system_prompt_path: experiment/configs/classifier_system_prompt.txt
+output_format: json
+json_schema: '{"type":"object","properties":{"family":{"type":"string","enum":["OBJ","PLAN_VALIDITY","STRUCT","SCHEDULE"]}},"required":["family"]}'
+
+iteration_evidence_path: experiment/pilot/classifier_iteration_summary.md
+
+known_limitation: |
+  STRUCT_SCHEDULE boundary accuracy ~0.667 in pilot (1 miss in n=3 on the
+  original boundary set; 6/6 after few-shot but few-shot reverted due to
+  isomorphic regression on PV_SCHEDULE). Auditable per-prompt: prompts.csv
+  has hand-labelled ground-truth `true_family` for each of the 48 prompts.
+  Analysis reports Claim 2 (policy effect) both with and without classifier
+  errors. See spec.md §1 and experiment/pilot/classifier_iteration_summary.md
+  for the iteration that produced this locked configuration.
+
+# Same model-string assertion as the generator / judge.
+assert_served_model_prefix: claude-haiku-4-5
+halt_on_model_mismatch: true
+
+validate_structured_output: true
+halt_on_validation_failure: true

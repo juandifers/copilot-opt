@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "Generator structured-output schema. answer_text is required; the six claim fields are nullable and the generator fills only the ones it actually claimed in answer_text. Every response is validated against this schema by the runner; validation failure halts the run rather than coerces (Haiku-as-generator has a non-zero rate of malformed output, and silent coercion would corrupt the analysis).",
+  "title": "Generator output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "answer_text",
+    "claimed_objective",
+    "claimed_feasible",
+    "claimed_route_count",
+    "claimed_route_membership",
+    "claimed_late_customers",
+    "claimed_customer_timings"
+  ],
+  "properties": {
+    "answer_text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The natural-language answer the generator produced. Required."
+    },
+    "claimed_objective": {
+      "type": ["number", "null"],
+      "description": "OBJ. The numerical objective value the answer asserted (Solomon-native units, same as the payload's units.objective). Null if the answer made no objective claim."
+    },
+    "claimed_feasible": {
+      "type": ["boolean", "null"],
+      "description": "PLAN_VALIDITY. Whether the answer asserted the plan is feasible. Null if the answer made no feasibility claim."
+    },
+    "claimed_route_count": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "STRUCT. The number of routes / trucks / vehicles the answer asserted. Null if the answer made no count claim."
+    },
+    "claimed_route_membership": {
+      "type": ["array", "null"],
+      "description": "STRUCT. List of {route_idx, customer_ids} pairs the answer asserted (a customer-on-route claim or a route-contains-customers claim). Null if the answer made no membership claim.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["route_idx", "customer_ids"],
+        "properties": {
+          "route_idx": {"type": "integer", "minimum": 0},
+          "customer_ids": {
+            "type": "array",
+            "items": {"type": "integer", "minimum": 1},
+            "minItems": 1
+          }
+        }
+      }
+    },
+    "claimed_late_customers": {
+      "type": ["array", "null"],
+      "description": "SCHEDULE. Customer IDs the answer asserted were late. Empty array means the answer asserted nobody is late; null means the answer made no lateness claim at all.",
+      "items": {"type": "integer", "minimum": 1}
+    },
+    "claimed_customer_timings": {
+      "type": ["array", "null"],
+      "description": "SCHEDULE. List of (customer_id, stated arrival or start-service time) pairs the answer asserted. Times in Solomon-native units, same as the payload's units.time. Null if the answer made no per-customer timing claim.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["customer_id", "stated_arrival_or_start"],
+        "properties": {
+          "customer_id": {"type": "integer", "minimum": 1},
+          "stated_arrival_or_start": {"type": "number"}
+        }
+      }
+    }
+  }
+}

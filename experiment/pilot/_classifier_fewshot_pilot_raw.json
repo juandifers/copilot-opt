@@ -1,0 +1,241 @@
+{
+  "n_prompts": 15,
+  "n_correct": 14,
+  "accuracy": 0.9333333333333333,
+  "confusion_matrix": {
+    "OBJ": {
+      "OBJ": 2,
+      "PLAN_VALIDITY": 0,
+      "STRUCT": 0,
+      "SCHEDULE": 0
+    },
+    "PLAN_VALIDITY": {
+      "OBJ": 0,
+      "PLAN_VALIDITY": 2,
+      "STRUCT": 0,
+      "SCHEDULE": 1
+    },
+    "STRUCT": {
+      "OBJ": 0,
+      "PLAN_VALIDITY": 0,
+      "STRUCT": 6,
+      "SCHEDULE": 0
+    },
+    "SCHEDULE": {
+      "OBJ": 0,
+      "PLAN_VALIDITY": 0,
+      "STRUCT": 0,
+      "SCHEDULE": 4
+    }
+  },
+  "per_boundary": {
+    "PV_SCHEDULE": {
+      "n": 3,
+      "correct": 2,
+      "accuracy": 0.6666666666666666
+    },
+    "STRUCT_SCHEDULE": {
+      "n": 6,
+      "correct": 6,
+      "accuracy": 1.0
+    },
+    "OBJ_STRUCT": {
+      "n": 2,
+      "correct": 2,
+      "accuracy": 1.0
+    },
+    "PV_STRUCT": {
+      "n": 2,
+      "correct": 2,
+      "accuracy": 1.0
+    },
+    "OBJ_SCHEDULE": {
+      "n": 2,
+      "correct": 2,
+      "accuracy": 1.0
+    }
+  },
+  "retries": [],
+  "results": [
+    {
+      "prompt_id": "BPS_01",
+      "true_family": "PLAN_VALIDITY",
+      "predicted_family": "SCHEDULE",
+      "correct": false,
+      "boundary_pair": "PV_SCHEDULE",
+      "boundary_rationale": "Headline claim is coverage (is the customer served at all); no timing implied. Answer reads off unserved_customer_ids.",
+      "prompt_text": "Will customer 42 still get a delivery today?",
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 20559,
+      "attempts": 1
+    },
+    {
+      "prompt_id": "BPS_02",
+      "true_family": "SCHEDULE",
+      "predicted_family": "SCHEDULE",
+      "correct": true,
+      "boundary_pair": "PV_SCHEDULE",
+      "boundary_rationale": "Same customer-level question with timing modifier (on time). Answer reads off customer_schedule[42].is_late.",
+      "prompt_text": "Will customer 42 still get a delivery on time today?",
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 11092,
+      "attempts": 1
+    },
+    {
+      "prompt_id": "BPS_03",
+      "true_family": "PLAN_VALIDITY",
+      "predicted_family": "PLAN_VALIDITY",
+      "correct": true,
+      "boundary_pair": "PV_SCHEDULE",
+      "boundary_rationale": "Coverage-only question (fit in = serve); no timing. Answer reads off n_unserved_customers.",
+      "prompt_text": "Are there any stops we couldn't fit in?",
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 15134,
+      "attempts": 1
+    },
+    {
+      "prompt_id": "BSS_01",
+      "true_family": "STRUCT",
+      "predicted_family": "STRUCT",
+      "correct": true,
+      "boundary_pair": "STRUCT_SCHEDULE",
+      "boundary_rationale": "Asks for visit sequence on a route; answer is the customer_ids list for route 5. No clock times required.",
+      "prompt_text": "What's the order of stops on route 5?",
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 11816,
+      "attempts": 1
+    },
+    {
+      "prompt_id": "BSS_02",
+      "true_family": "SCHEDULE",
+      "predicted_family": "SCHEDULE",
+      "correct": true,
+      "boundary_pair": "STRUCT_SCHEDULE",
+      "boundary_rationale": "Same route but the headline claim is per-stop arrival times. Answer reads off customer_schedule entries for route_idx=5.",
+      "prompt_text": "What time does route 5 hit each stop?",
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 10325,
+      "attempts": 1
+    },
+    {
+      "prompt_id": "BSS_03",
+      "true_family": "STRUCT",
+      "predicted_family": "STRUCT",
+      "correct": true,
+      "boundary_pair": "STRUCT_SCHEDULE",
+      "boundary_rationale": "Visit order on a route. Before/after is sequence-position language; answer comes from the customer_ids list ordering. No timing payload needed.",
+      "prompt_text": "Does route 5 visit customer 12 before or after customer 17?",
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 27514,
+      "attempts": 1
+    },
+    {
+      "prompt_id": "BOS_01",
+      "true_family": "OBJ",
+      "predicted_family": "OBJ",
+      "correct": true,
+      "boundary_pair": "OBJ_STRUCT",
+      "boundary_rationale": "Headline claim is total cost. Answer reads off objective_delta_absolute.",
+      "prompt_text": "Did this end up costing more?",
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 10834,
+      "attempts": 1
+    },
+    {
+      "prompt_id": "BOS_02",
+      "true_family": "STRUCT",
+      "predicted_family": "STRUCT",
+      "correct": true,
+      "boundary_pair": "OBJ_STRUCT",
+      "boundary_rationale": "Headline claim is vehicle count. Answer reads off n_routes vs baseline_n_routes.",
+      "prompt_text": "Did this need more trucks?",
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 9310,
+      "attempts": 1
+    },
+    {
+      "prompt_id": "BPVS_01",
+      "true_family": "STRUCT",
+      "predicted_family": "STRUCT",
+      "correct": true,
+      "boundary_pair": "PV_STRUCT",
+      "boundary_rationale": "Route count question. Answer reads off n_routes.",
+      "prompt_text": "Did the number of vehicles go up?",
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 9290,
+      "attempts": 1
+    },
+    {
+      "prompt_id": "BPVS_02",
+      "true_family": "PLAN_VALIDITY",
+      "predicted_family": "PLAN_VALIDITY",
+      "correct": true,
+      "boundary_pair": "PV_STRUCT",
+      "boundary_rationale": "Capacity overload is a feasibility breakdown. Answer reads off feasibility_breakdown.capacity_ok.",
+      "prompt_text": "Did we exceed capacity anywhere?",
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 8977,
+      "attempts": 1
+    },
+    {
+      "prompt_id": "BOC_01",
+      "true_family": "OBJ",
+      "predicted_family": "OBJ",
+      "correct": true,
+      "boundary_pair": "OBJ_SCHEDULE",
+      "boundary_rationale": "Aggregated total duration vs baseline. Per the family definitions in the system prompt total duration is OBJ; SCHEDULE covers per-customer or per-route timing",
+      "prompt_text": "How much longer overall is the new plan compared to yesterday?",
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 10376,
+      "attempts": 1
+    },
+    {
+      "prompt_id": "BOC_02",
+      "true_family": "SCHEDULE",
+      "predicted_family": "SCHEDULE",
+      "correct": true,
+      "boundary_pair": "OBJ_SCHEDULE",
+      "boundary_rationale": "Specific clock-time check on a route end. Answer reads off route_end_times.",
+      "prompt_text": "Will we still finish the last delivery before 6pm?",
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 14610,
+      "attempts": 1
+    },
+    {
+      "prompt_id": "BSS_04",
+      "true_family": "STRUCT",
+      "predicted_family": "STRUCT",
+      "correct": true,
+      "boundary_pair": "STRUCT_SCHEDULE",
+      "boundary_rationale": "Asks for the next customer in the visit sequence relative to a known customer. No clock anchor; answer reads off customer_ids order on customer 41's route.",
+      "prompt_text": "Which customer comes right after customer 41 on its route?",
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 11569,
+      "attempts": 1
+    },
+    {
+      "prompt_id": "BSS_05",
+      "true_family": "STRUCT",
+      "predicted_family": "STRUCT",
+      "correct": true,
+      "boundary_pair": "STRUCT_SCHEDULE",
+      "boundary_rationale": "Asks for a position in the visit sequence (last). No clock anchor; answer reads off the final element of route 3's customer_ids.",
+      "prompt_text": "Is customer 14 the last stop on route 3?",
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 9753,
+      "attempts": 1
+    },
+    {
+      "prompt_id": "BSS_06",
+      "true_family": "SCHEDULE",
+      "predicted_family": "SCHEDULE",
+      "correct": true,
+      "boundary_pair": "STRUCT_SCHEDULE",
+      "boundary_rationale": "Clock-anchored timing query (after 6pm). Answer reads off start_service across customer_schedule entries.",
+      "prompt_text": "Are any deliveries scheduled after 6pm?",
+      "model_served": "claude-haiku-4-5-20251001",
+      "wallclock_ms": 11472,
+      "attempts": 1
+    }
+  ]
+}
