@@ -12,7 +12,9 @@ How to do this:
 
 5. Compute op_validity_pass per the family-specific check definitions in the rubric. op_validity grades only the headline claim for the family (the stated objective for OBJ, the feasibility flag for PLAN_VALIDITY, the route count or membership for STRUCT, the timing claim for SCHEDULE). It is binary. Populate op_validity_check_results with the per-check booleans the rubric specifies for the family.
 
-6. If the answer refused with the canonical phrase "the data does not contain this information," apply the refusal handling rule in the rubric (section d): faithfulness = 5 if the payload genuinely does not support the claim, faithfulness = 1 if it does and the model evaded; op_validity_pass = null; op_validity_check_results = null; refusal_detected = true.
+6. If the answer refused with the canonical phrase "the data does not contain this information," apply the refusal handling rule in the rubric (section e): faithfulness = 5 if the payload genuinely does not support the claim, faithfulness = 1 if it does and the model evaded; op_validity_pass = null; op_validity_check_results = null; refusal_detected = true.
+
+Before scoring op_validity, check whether the prompt's intent (per prompts.csv `op_validity_gradable` column) is to elicit a headline claim. If `op_validity_gradable` is false, set `op_validity_pass = null` and `op_validity_check_results = null` (per rubric section c — non-headline non-refusal answers). If `op_validity_gradable` is true and the model refused, set `op_validity_pass = null` and `refusal_detected = true` per the rule above. If `op_validity_gradable` is true and the model gave an answer, apply the per-family check from rubric.md.
 
 Critical guards against known failure modes of Sonnet-as-judge:
 
@@ -53,6 +55,7 @@ CONTEXT:
 - Perturbation: {perturbation_description}
 - Action taken: {action_name}
 - Claim family: {claim_family}
+- op_validity_gradable: {op_validity_gradable}
 
 SOLUTION DATA:
 {solution_data_json}

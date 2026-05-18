@@ -25,6 +25,12 @@ This split is deliberate. Op-validity is binary and machine-checkable
 per family; faithfulness is the broader prose verification. The rubric
 in Prompt 4 encodes this scoping explicitly.
 
+Prompt-level flag — `prompts.csv` carries a column `op_validity_gradable`
+(boolean) that flags whether the prompt was constructed to elicit a
+headline claim; when false the judge sets op-validity to null per
+`rubric.md` (c). See `synthetic_templates.md` for the per-template
+values.
+
 ### Payload construction
 
 These apply to every family.

@@ -61,8 +61,23 @@ membership_set_equal  = for every {route_idx, customer_ids} pair the
 `op_validity_pass` = conjunction of all non-null sub-checks.
 
 `op_validity_check_results` keys: `{"route_count_exact": <bool | null>,
-"membership_set_equal": <bool | null>}` (null where the answer made
-no such claim).
+"membership_set_equal": <bool | null>, "same_route_boolean": <bool |
+null>}` (null where the answer made no such claim).
+
+*Additional case — same-route boolean.* When the answer states a
+boolean about two customers being on the same route (e.g., "yes,
+customers 12 and 17 are on the same route"), the check is:
+
+```
+same_route_boolean = stated_same_route == any(
+    {12, 17}.issubset(set(payload.routes[r].customer_ids))
+    for r in 0..len(payload.routes)
+)
+```
+
+Stated boolean must match the payload's true value. This is consistent
+with the locked rubric's spirit (an exact-equality check on a
+structure claim), not an amendment.
 
 **SCHEDULE — arrival and lateness within 1 minute per customer.** Same
 two-check pattern: populate whichever the answer made.
@@ -83,9 +98,34 @@ lateness_within_1min = if the answer claimed which customers are late,
 `op_validity_pass` = conjunction of all non-null sub-checks.
 
 `op_validity_check_results` keys: `{"arrival_within_1min": <bool |
-null>, "lateness_within_1min": <bool | null>}`.
+null>, "lateness_within_1min": <bool | null>, "any_late_boolean": <bool
+| null>}`.
 
-## (c) Op-validity vs faithfulness scoping
+*Additional case — any-late boolean.* When the answer states a boolean
+about whether anyone is late (e.g., "yes, customer 47 is running
+behind" or "no, everyone makes their window"), the check is:
+
+```
+any_late_boolean = stated_any_late == (payload.n_late_customers > 0)
+```
+
+Stated boolean must match the payload's true value. Consistent with
+the locked rubric's spirit, not an amendment.
+
+## (c) Non-headline non-refusal answers
+
+Some prompts elicit a real answer that is not the family's headline
+claim and is not a refusal. Examples: an OBJ prompt asking "is the
+cost up or down" elicits a direction, not a stated objective; a
+PLAN_VALIDITY prompt asking "are we hitting capacity issues" elicits
+a sub-feasibility status, not overall feasibility. For these answers:
+`op_validity_pass = null`, `op_validity_check_results = null`,
+`refusal_detected = false`. Faithfulness scores the actual sub-claim
+against the payload normally. The `prompts.csv` column
+`op_validity_gradable` flags whether the prompt was constructed to
+elicit a headline claim.
+
+## (d) Op-validity vs faithfulness scoping
 
 Op-validity is the binary deterministic per-family check defined in (b).
 It grades exactly one headline claim per family: the stated objective
@@ -104,7 +144,7 @@ per family. Faithfulness is the broader prose verification. The judge
 prompt encodes this scoping explicitly so the two axes are not
 collapsed in scoring.
 
-## (d) Refusal handling
+## (e) Refusal handling
 
 A "refusal" is an answer that contains the canonical phrase "the data
 does not contain this information" (case-insensitive substring match
@@ -126,9 +166,9 @@ Rules for scoring refusals:
 This rule applies across all four families. The judge does not have to
 choose between "refusal is right" and "refusal is wrong" — section (a)
 of the rubric tells the judge whether the payload supported the claim,
-and (d) translates that into the faithfulness score for refusal cases.
+and (e) translates that into the faithfulness score for refusal cases.
 
-## (e) Binary faithfulness threshold for downstream analysis
+## (f) Binary faithfulness threshold for downstream analysis
 
 ```
 faithful_pass = (faithfulness_score >= 4)
