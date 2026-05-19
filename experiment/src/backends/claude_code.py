@@ -98,9 +98,14 @@ def _parse_payload(
 
 
 def _extract_model_version(payload: dict, cmd: list[str], prompt_id: str | None) -> str:
-    """Return the most-specific model id from modelUsage keys.
+    """Return the model id that actually produced the response.
 
-    Prefers dated IDs (e.g. 'claude-haiku-4-5-20251001') over base aliases.
+    Claude Code's auto-mode classifier adds a tiny-output prelude entry to
+    modelUsage alongside the model that produced the answer. Selecting by
+    largest outputTokens picks the responding model, not the classifier.
+    Tie-break by longest key to prefer dated ids over base aliases when
+    output-token counts are equal.
+
     Raises HaltError if modelUsage is empty.
     """
     usage = payload.get("modelUsage") or {}
@@ -109,7 +114,11 @@ def _extract_model_version(payload: dict, cmd: list[str], prompt_id: str | None)
             "claude response has empty modelUsage; cannot determine model version",
             last_cmd=cmd, last_response=payload, last_prompt_id=prompt_id,
         )
-    return sorted(usage.keys(), key=len)[-1]
+    return sorted(
+        usage.keys(),
+        key=lambda k: (int((usage[k] or {}).get("outputTokens") or 0), len(k)),
+        reverse=True,
+    )[0]
 
 
 def _extract_structured_output(
