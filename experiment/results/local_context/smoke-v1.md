@@ -1,0 +1,54 @@
+# Local context capture — run_id=smoke-v1
+- captured_at: 2026-05-19T00:43:11Z
+- git_commit: 7ed55d7d110a222077140388307a3538a717ad75
+- tags_at_head: ['preregistration-prompts-v1']
+
+## claude --help (first 40 lines)
+```
+Usage: claude [options] [command] [prompt]
+
+Claude Code - starts an interactive session by default, use -p/--print for
+non-interactive output
+
+Arguments:
+  prompt                                            Your prompt
+
+Options:
+  --add-dir <directories...>                        Additional directories to allow tool access to
+  --agent <agent>                                   Agent for the current session. Overrides the 'agent' setting.
+  --agents <json>                                   JSON object defining custom agents (e.g. '{"reviewer": {"description": "Reviews code", "prompt": "You are a code reviewer"}}')
+  --allow-dangerously-skip-permissions              Enable bypassing all permission checks as an option, without it being enabled by default. Recommended only for sandboxes with no internet access.
+  --allowedTools, --allowed-tools <tools...>        Comma or space-separated list of tool names to allow (e.g. "Bash(git *) Edit")
+  --append-system-prompt <prompt>                   Append a system prompt to the default system prompt
+  --bare                                            Minimal mode: skip hooks, LSP, plugin sync, attribution, auto-memory, background prefetches, keychain reads, and CLAUDE.md auto-discovery. Sets CLAUDE_CODE_SIMPLE=1. Anthropic auth is strictly ANTHROPIC_API_KEY or apiKeyHelper via --settings (OAuth and keychain are never read). 3P providers (Bedrock/Vertex/Foundry) use their own credentials. Skills still resolve via /skill-name. Explicitly provide context via: --system-prompt[-file], --append-system-prompt[-file], --add-dir (CLAUDE.md dirs), --mcp-config, --settings, --agents, --plugin-dir.
+  --betas <betas...>                                Beta headers to include in API requests (API key users only)
+  --brief                                           Enable SendUserMessage tool for agent-to-user communication
+  --chrome                                          Enable Claude in Chrome integration
+  -c, --continue                                    Continue the most recent conversation in the current directory
+  --dangerously-skip-permissions                    Bypass all permission checks. Recommended only for sandboxes with no internet access.
+  -d, --debug [filter]                              Enable debug mode with optional category filtering (e.g., "api,hooks" or "!1p,!file")
+  --debug-file <path>                               Write debug logs to a specific file path (implicitly enables debug mode)
+  --disable-slash-commands                          Disable all skills
+  --disallowedTools, --disallowed-tools <tools...>  Comma or space-separated list of tool names to deny (e.g. "Bash(git *) Edit")
+  --effort <level>                                  Effort level for the current session (low, medium, high, xhigh, max)
+  --exclude-dynamic-system-prompt-sections          Move per-machine sections (cwd, env info, memory paths, git status) from the system prompt into the first user message. Improves cross-user prompt-cache reuse. Only applies with the default system prompt (ignored with --system-prompt). (default: false)
+  --fallback-model <model>                          Enable automatic fallback to specified model when default model is overloaded (only works with --print)
+  --file <specs...>                                 File resources to download at startup. Format: file_id:relative_path (e.g., --file file_abc:doc.txt file_def:img.png)
+  --fork-session                                    When resuming, create a new session ID instead of reusing the original (use with --resume or --continue)
+  --from-pr [value]                                 Resume a session linked to a PR by PR number/URL, or open interactive picker with optional search term
+  -h, --help                                        Display help for command
+  --ide                                             Automatically connect to IDE on startup if exactly one valid IDE is available
+  --include-hook-events                             Include all hook lifecycle events in the output stream (only works with --output-format=stream-json)
+  --include-partial-messages                        Include partial message chunks as they arrive (only works with --print and --output-format=stream-json)
+  --input-format <format>                           Input format (only works with --print): "text" (default), or "stream-json" (realtime streaming input) (choices: "text", "stream-json")
+  --json-schema <schema>                            JSON Schema for structured output validation. Example: {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
+  --max-budget-usd <amount>                         Maximum dollar amount to spend on API calls (only works with --print)
+  --mcp-config <configs...>                         Load MCP servers from JSON files or strings (space-separated)
+  --mcp-debug                                       [DEPRECATED. Use --debug instead] Enable MCP debug mode (shows MCP server errors)
+```
+
+## ./CLAUDE.md: (absent)
+
+## ~/.claude/CLAUDE.md: (absent)
+
+## env names (no values): ['CLAUDE_CODE_ENTRYPOINT', 'CLAUDE_CODE_EXECPATH', 'CLAUDE_CODE_SESSION_ID', 'CLAUDE_EFFORT']

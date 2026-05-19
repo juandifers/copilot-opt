@@ -1,0 +1,2 @@
+run_id,start_time,end_time,git_commit,generator_model_served,judge_model_served,n_prompts_attempted,n_prompts_completed,n_halts,n_retries,total_token_usage,total_wall_clock_seconds
+smoke-v1,2026-05-19T00:43:10Z,2026-05-19T00:45:57Z,7ed55d7d110a222077140388307a3538a717ad75,claude-haiku-4-5-20251001,claude-sonnet-4-6,4,4,0,0,7075,166.39
