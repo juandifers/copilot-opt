@@ -1,0 +1,4 @@
+# Python dependencies for the closing experiment
+# Install with: pip install -r requirements.txt
+anthropic>=0.50.0
+jsonschema>=4.0
