@@ -7,7 +7,8 @@ a subset of ``experiment/data/prompts.csv`` per the locked configs at
 CLI
 ---
 ::
-    python experiment/src/run_experiment.py --run-id <id> --prompt-ids <ids>
+    python experiment/src/run_experiment.py --run-id <id> --prompt-ids <ids> \
+        [--backend {claude-code,api}]
 
 Inputs (verified at run start, halt on mismatch):
 - spec.md at tag ``spec-v1.1``
@@ -19,20 +20,17 @@ Outputs:
 - experiment/results/generator/<run_id>.jsonl
 - experiment/results/judge/<run_id>.jsonl
 - experiment/results/joined/<run_id>.csv
-- experiment/results/local_context/<run_id>.md
+- experiment/results/local_context/<run_id>.md        (claude-code backend)
+- experiment/results/backend_environment/<run_id>.md  (api backend)
 - experiment/results/<run_id>/halt_report.md (only on halt)
 - Append to experiment/results/run_log.csv
 
-Locked CLI shape (asserted at command-build time):
+Locked CLI shape for claude-code backend (asserted at command-build time):
 - ``--bare`` is forbidden (Max-OAuth requires its absence).
 - ``--system-prompt-file`` is used (NOT ``--append-system-prompt-file``);
   the locked generator/judge system prompts are designed to replace the
-  default, not extend it. Empirically verified to work under Max OAuth
-  in the same way the classifier uses it.
-- ``--json-schema`` takes the schema as an inline JSON string. The
-  flag ``--json-schema-file`` is not supported by this Claude Code
-  version. Deviation from the original task brief, documented in the
-  commit message and in the script header.
+  default, not extend it.
+- ``--json-schema`` takes the schema as an inline JSON string.
 
 Halt rules:
 - Auth failure, response.model prefix mismatch, ``--bare`` appearing,
@@ -42,8 +40,7 @@ Halt rules:
   on first attempt: retry once after 30s sleep.
 
 Idempotency: a run halts at preflight if
-``experiment/results/generator/<run_id>.jsonl`` already exists. Delete
-or rename before re-running.
+``experiment/results/generator/<run_id>.jsonl`` already exists.
 """
 from __future__ import annotations
 
@@ -53,7 +50,6 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import time
@@ -66,6 +62,8 @@ import jsonschema
 _REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO / "experiment" / "src"))
 
+from backends.base import HaltError, ModelBackend, ModelResponse  # noqa: E402
+from backends import get_backend  # noqa: E402
 from op_validity import check as op_validity_check  # noqa: E402
 from payload_projector import build_payload  # noqa: E402
 
@@ -95,6 +93,11 @@ GENERATOR_PREFIX = "claude-haiku-4-5"
 JUDGE_MODEL = "claude-sonnet-4-6"
 JUDGE_PREFIX = "claude-sonnet-4-6"
 
+# max_tokens from generator_config.yaml; judge has no explicit limit so use
+# a safe ceiling for Sonnet's rationale output.
+GENERATOR_MAX_TOKENS = 1500
+JUDGE_MAX_TOKENS = 2048
+
 PAYLOAD_FAMILY_KEY = {"OBJ": "OBJ", "PLAN_VALIDITY": "PV",
                       "STRUCT": "STRUCT", "SCHEDULE": "SCHEDULE"}
 
@@ -121,23 +124,10 @@ def _utcnow() -> str:
 
 
 def _git_hash_object(path: Path) -> str:
-    """Compute the git blob sha1 of a working-copy file.
-
-    Shells to ``git hash-object`` so .gitattributes / autocrlf
-    normalization is applied the same way commits do. Raw byte hashing
-    would diverge on text files whose working-tree CRLF endings are
-    stored as LF in the index.
-    """
+    """Compute the git blob sha1 of a working-copy file."""
     return subprocess.check_output(
         ["git", "hash-object", str(path)], cwd=_REPO, text=True,
     ).strip()
-
-
-def _resolve_claude_binary() -> str:
-    b = shutil.which("claude")
-    if not b:
-        raise RuntimeError("`claude` CLI not found on PATH")
-    return b
 
 
 def _git(args: list[str]) -> str:
@@ -148,29 +138,9 @@ def _git(args: list[str]) -> str:
 # Halt machinery
 
 
-class HaltError(RuntimeError):
-    """Raised when the run must stop. The runner writes a halt_report.md and exits non-zero."""
-
-    def __init__(self, message: str, *, last_cmd: list[str] | None = None,
-                 last_response: dict | str | None = None,
-                 last_prompt_id: str | None = None):
-        super().__init__(message)
-        self.last_cmd = last_cmd
-        self.last_response = last_response
-        self.last_prompt_id = last_prompt_id
-
-
 def _write_halt_report(run_root: Path, err: HaltError,
                        n_completed: int, assertion: str) -> None:
     run_root.mkdir(parents=True, exist_ok=True)
-    cmd_redacted = []
-    for tok in (err.last_cmd or []):
-        if tok.startswith("/"):
-            # Tokens that look like paths are kept (already public);
-            # everything else passes through.
-            cmd_redacted.append(tok)
-        else:
-            cmd_redacted.append(tok)
     response_blob = err.last_response
     if isinstance(response_blob, dict):
         response_blob = json.dumps(response_blob, indent=2)[:8000]
@@ -184,7 +154,7 @@ def _write_halt_report(run_root: Path, err: HaltError,
         "",
         "## Last command line",
         "```",
-        " ".join(cmd_redacted) if cmd_redacted else "(none recorded)",
+        " ".join(err.last_cmd) if err.last_cmd else "(none recorded)",
         "```",
         "",
         "## Last response payload",
@@ -225,177 +195,36 @@ def preflight_verify_tags() -> None:
             )
 
 
-def assert_no_bare_in_cmd(cmd: list[str]) -> None:
-    if any(tok == "--bare" for tok in cmd):
-        raise HaltError(
-            f"--bare appeared in command line; locked configs require "
-            f"bare:false. Halting. cmd={cmd!r}"
-        )
-
-
 # ---------------------------------------------------------------------------
-# Local context capture
+# Environment capture
 
 
-def capture_local_context(run_id: str, results_root: Path) -> Path:
-    out_dir = results_root / "local_context"
+def _format_env_dict(run_id: str, env: dict) -> str:
+    """Serialise a capture_environment() dict to a markdown document."""
+    lines = [
+        f"# Environment capture — run_id={run_id}",
+        f"- captured_at: {_utcnow()}",
+    ]
+    for k, v in env.items():
+        if isinstance(v, (dict, list)):
+            lines.append(f"\n## {k}\n```json\n{json.dumps(v, indent=2)}\n```")
+        elif isinstance(v, str) and "\n" in v:
+            lines.append(f"\n## {k}\n```\n{v}\n```")
+        else:
+            lines.append(f"- {k}: {v}")
+    return "\n".join(lines)
+
+
+def write_environment_artifact(
+    backend: ModelBackend, run_id: str, results_root: Path
+) -> Path:
+    env_info = backend.capture_environment()
+    subdir = "local_context" if backend.name() == "claude-code" else "backend_environment"
+    out_dir = results_root / subdir
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{run_id}.md"
-
-    sections: list[str] = [f"# Local context capture — run_id={run_id}",
-                           f"- captured_at: {_utcnow()}"]
-
-    # Git state
-    try:
-        commit = _git(["rev-parse", "HEAD"])
-        sections.append(f"- git_commit: {commit}")
-    except Exception:
-        sections.append("- git_commit: (unavailable)")
-
-    try:
-        tags_at_head = _git(["tag", "--points-at", "HEAD"]).splitlines()
-        sections.append(f"- tags_at_head: {tags_at_head}")
-    except Exception:
-        sections.append("- tags_at_head: (unavailable)")
-
-    # CLI version surface
-    try:
-        out_help = subprocess.run(
-            ["claude", "--help"], capture_output=True, text=True, timeout=15,
-        )
-        help_head = "\n".join(out_help.stdout.splitlines()[:40])
-        sections.append("\n## claude --help (first 40 lines)\n```\n" + help_head + "\n```")
-    except Exception as exc:
-        sections.append(f"\n## claude --help — unavailable: {exc}")
-
-    # CLAUDE.md candidates (full text). Local + user.
-    for label, p in [
-        ("./CLAUDE.md", _REPO / "CLAUDE.md"),
-        ("~/.claude/CLAUDE.md", Path.home() / ".claude" / "CLAUDE.md"),
-    ]:
-        if p.exists():
-            sections.append(f"\n## {label}\n```\n{p.read_text()}\n```")
-        else:
-            sections.append(f"\n## {label}: (absent)")
-
-    # ANTHROPIC_* / CLAUDE_* env variable NAMES only (no values).
-    env_names = sorted(
-        k for k in os.environ
-        if k.startswith("ANTHROPIC_") or k.startswith("CLAUDE_")
-    )
-    sections.append(f"\n## env names (no values): {env_names}")
-
-    out.write_text("\n".join(sections))
+    out.write_text(_format_env_dict(run_id, env_info))
     return out
-
-
-# ---------------------------------------------------------------------------
-# CLI invocation primitives
-
-
-@dataclass
-class CallResult:
-    rc: int
-    stdout: str
-    stderr: str
-    cmd: list[str]
-    elapsed_ms: int
-
-
-def call_claude(
-    *, model: str, system_prompt_file: Path, json_schema: dict,
-    user_message: str, timeout_s: float = 180,
-) -> CallResult:
-    binary = _resolve_claude_binary()
-    cmd = [
-        binary, "-p",
-        "--model", model,
-        "--system-prompt-file", str(system_prompt_file),
-        "--output-format", "json",
-        "--json-schema", json.dumps(json_schema),
-        "--allowedTools", "",
-    ]
-    assert_no_bare_in_cmd(cmd)
-    t0 = time.perf_counter()
-    proc = subprocess.run(
-        cmd, input=user_message, capture_output=True, text=True,
-        timeout=timeout_s,
-    )
-    elapsed_ms = int((time.perf_counter() - t0) * 1000)
-    return CallResult(
-        rc=proc.returncode, stdout=proc.stdout, stderr=proc.stderr,
-        cmd=cmd, elapsed_ms=elapsed_ms,
-    )
-
-
-def parse_response_or_halt(cr: CallResult, *, prompt_id: str | None) -> dict:
-    if cr.rc != 0:
-        raise HaltError(
-            f"claude rc={cr.rc}: {cr.stderr.strip()[:600]}",
-            last_cmd=cr.cmd, last_prompt_id=prompt_id,
-        )
-    try:
-        payload = json.loads(cr.stdout)
-    except json.JSONDecodeError as exc:
-        raise HaltError(
-            f"failed to parse claude JSON: {exc}; head: {cr.stdout[:400]!r}",
-            last_cmd=cr.cmd, last_prompt_id=prompt_id,
-        ) from exc
-    if payload.get("is_error"):
-        raise HaltError(
-            f"claude is_error=true: {payload.get('result')!r}; subtype={payload.get('subtype')!r}",
-            last_cmd=cr.cmd, last_response=payload, last_prompt_id=prompt_id,
-        )
-    return payload
-
-
-def assert_model_prefix(payload: dict, expected_prefix: str, *,
-                        prompt_id: str | None, cmd: list[str]) -> str:
-    """Return the canonical served model id matching ``expected_prefix``."""
-    usage = payload.get("modelUsage") or {}
-    matches = [k for k in usage.keys() if k.startswith(expected_prefix)]
-    if not matches:
-        raise HaltError(
-            f"response.modelUsage has no key starting with {expected_prefix!r}; "
-            f"keys={list(usage.keys())}",
-            last_cmd=cmd, last_response=payload, last_prompt_id=prompt_id,
-        )
-    # Prefer a dated id (longer than the prefix) so the log records the
-    # exact served version.
-    dated = sorted(k for k in matches if k != expected_prefix)
-    return dated[-1] if dated else matches[0]
-
-
-def extract_structured_output(payload: dict, *, cmd: list[str],
-                              prompt_id: str | None) -> dict:
-    so = payload.get("structured_output")
-    if isinstance(so, dict):
-        return so
-    result_str = payload.get("result", "")
-    try:
-        parsed = json.loads(result_str) if result_str else None
-    except json.JSONDecodeError as exc:
-        raise HaltError(
-            f"no structured_output and result not JSON: {exc}; result head={result_str[:300]!r}",
-            last_cmd=cmd, last_response=payload, last_prompt_id=prompt_id,
-        ) from exc
-    if not isinstance(parsed, dict):
-        raise HaltError(
-            f"structured_output absent and result is not a JSON object",
-            last_cmd=cmd, last_response=payload, last_prompt_id=prompt_id,
-        )
-    return parsed
-
-
-def validate_or_halt(obj: dict, schema: dict, *, label: str,
-                     cmd: list[str], prompt_id: str | None) -> None:
-    try:
-        jsonschema.validate(obj, schema)
-    except jsonschema.ValidationError as exc:
-        raise HaltError(
-            f"{label} schema validation failed: {exc.message}; path={list(exc.absolute_path)}",
-            last_cmd=cmd, last_response=obj, last_prompt_id=prompt_id,
-        ) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -403,11 +232,7 @@ def validate_or_halt(obj: dict, schema: dict, *, label: str,
 
 
 def split_system_and_user(template_text: str) -> tuple[str, str]:
-    """Split a *_system_prompt.txt at the first ``---`` separator line.
-
-    Pre-`---` is the system prompt (general instructions). Post-`---` is
-    the user-side template rendered per-call with placeholders.
-    """
+    """Split a *_system_prompt.txt at the first ``---`` separator line."""
     lines = template_text.splitlines()
     sep_idx = None
     for i, l in enumerate(lines):
@@ -415,7 +240,6 @@ def split_system_and_user(template_text: str) -> tuple[str, str]:
             sep_idx = i
             break
     if sep_idx is None:
-        # Whole file is system; user is empty.
         return template_text, ""
     head = "\n".join(lines[:sep_idx]).rstrip() + "\n"
     tail = "\n".join(lines[sep_idx + 1:]).lstrip("\n")
@@ -444,15 +268,7 @@ def render_judge_system_and_user(judge_template: str, rubric_text: str, *,
                                  claim_family: str, op_validity_gradable: bool,
                                  solution_data_json: str,
                                  generator_output_json: str) -> tuple[str, str]:
-    """Build (system_prompt, user_message) for the judge call.
-
-    judge_system_prompt.txt has structure::
-        <instructions>
-        ---
-        {rubric_text}
-        ---
-        <per-call template with placeholders>
-    """
+    """Build (system_prompt, user_message) for the judge call."""
     parts = judge_template.split("\n---\n")
     if len(parts) != 3:
         raise HaltError(
@@ -482,7 +298,7 @@ def render_judge_system_and_user(judge_template: str, rubric_text: str, *,
 
 
 # ---------------------------------------------------------------------------
-# Perturbation description (used in CONTEXT block)
+# Perturbation description
 
 
 PERT_LABEL = {
@@ -496,6 +312,27 @@ PERT_LABEL = {
 def describe_perturbation(perturbation_id: str, perturbation_family: str) -> str:
     label = PERT_LABEL.get(perturbation_family, perturbation_family)
     return f"{perturbation_id} ({label})"
+
+
+# ---------------------------------------------------------------------------
+# Model version assertion (backend-agnostic)
+
+
+def assert_model_version(
+    response: ModelResponse,
+    expected_prefix: str,
+    *,
+    prompt_id: str | None,
+    role: str,
+) -> None:
+    """Halt if response.model_version does not start with expected_prefix."""
+    if not response.model_version.startswith(expected_prefix):
+        raise HaltError(
+            f"{role} model version {response.model_version!r} does not start "
+            f"with expected prefix {expected_prefix!r}",
+            last_response=response.raw_response,
+            last_prompt_id=prompt_id,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -513,10 +350,17 @@ class PromptOutcome:
 
 
 def run_one_prompt(
-    *, prompt_row: dict, generator_system_head: Path, generator_template_tail: str,
-    judge_template_raw: str, rubric_text: str,
-    generator_schema: dict, judge_schema: dict,
-    generator_jsonl: Path, judge_jsonl: Path,
+    *,
+    prompt_row: dict,
+    backend: ModelBackend,
+    generator_system_head: str,
+    generator_template_tail: str,
+    judge_template_raw: str,
+    rubric_text: str,
+    generator_schema: dict,
+    judge_schema: dict,
+    generator_jsonl: Path,
+    judge_jsonl: Path,
 ) -> PromptOutcome:
     prompt_id = prompt_row["prompt_id"]
     family = prompt_row["family"]
@@ -535,7 +379,7 @@ def run_one_prompt(
     solution_data_json = json.dumps(payload, sort_keys=False)
     perturbation_description = describe_perturbation(perturbation_id, perturbation_family)
 
-    # 3. Generator user message + call.
+    # 3. Generator call.
     gen_user_msg = render_generator_user_message(
         generator_template_tail,
         operator_prompt=operator_prompt,
@@ -545,54 +389,23 @@ def run_one_prompt(
         solution_data_json=solution_data_json,
     )
 
-    cr = call_claude(
-        model=GENERATOR_MODEL,
-        system_prompt_file=generator_system_head,
-        json_schema=generator_schema,
-        user_message=gen_user_msg,
-    )
-
-    # Retry once on transient failure.
-    if cr.rc != 0:
-        time.sleep(30)
-        cr = call_claude(
-            model=GENERATOR_MODEL,
-            system_prompt_file=generator_system_head,
-            json_schema=generator_schema,
-            user_message=gen_user_msg,
-        )
-
-    gen_payload = parse_response_or_halt(cr, prompt_id=prompt_id)
-    gen_model_served = assert_model_prefix(
-        gen_payload, GENERATOR_PREFIX, prompt_id=prompt_id, cmd=cr.cmd,
-    )
-    gen_structured = extract_structured_output(
-        gen_payload, cmd=cr.cmd, prompt_id=prompt_id,
-    )
-    # First validation attempt; retry once on failure with full re-call.
     try:
-        jsonschema.validate(gen_structured, generator_schema)
-    except jsonschema.ValidationError:
-        time.sleep(30)
-        cr = call_claude(
+        gen_response = backend.call(
             model=GENERATOR_MODEL,
-            system_prompt_file=generator_system_head,
-            json_schema=generator_schema,
+            system_prompt=generator_system_head,
             user_message=gen_user_msg,
+            output_schema=generator_schema,
+            max_tokens=GENERATOR_MAX_TOKENS,
         )
-        gen_payload = parse_response_or_halt(cr, prompt_id=prompt_id)
-        gen_model_served = assert_model_prefix(
-            gen_payload, GENERATOR_PREFIX, prompt_id=prompt_id, cmd=cr.cmd,
-        )
-        gen_structured = extract_structured_output(
-            gen_payload, cmd=cr.cmd, prompt_id=prompt_id,
-        )
-        validate_or_halt(
-            gen_structured, generator_schema,
-            label="generator (retry)", cmd=cr.cmd, prompt_id=prompt_id,
-        )
+    except HaltError as exc:
+        if exc.last_prompt_id is None:
+            exc.last_prompt_id = prompt_id
+        raise
 
-    answer_text = gen_structured.get("answer_text", "")
+    assert_model_version(gen_response, GENERATOR_PREFIX, prompt_id=prompt_id, role="generator")
+
+    gen_structured = gen_response.structured_output or {}
+    answer_text = gen_response.answer_text
 
     # Framing-leak scan.
     framing_hits = [
@@ -601,20 +414,25 @@ def run_one_prompt(
     ]
 
     # Write generator record.
+    raw_gen = gen_response.raw_response
     gen_record = {
         "timestamp": _utcnow(),
         "run_id": generator_jsonl.stem,
         "prompt_id": prompt_id,
+        "backend": backend.name(),
         "model_requested": GENERATOR_MODEL,
-        "model_served": gen_model_served,
-        "command_line": cr.cmd,
-        "wallclock_ms": cr.elapsed_ms,
-        "claude_duration_ms": gen_payload.get("duration_ms"),
-        "claude_api_duration_ms": gen_payload.get("duration_api_ms"),
-        "session_id": gen_payload.get("session_id"),
-        "total_cost_usd": gen_payload.get("total_cost_usd"),
-        "model_usage": gen_payload.get("modelUsage"),
-        "usage": gen_payload.get("usage"),
+        "model_served": gen_response.model_version,
+        "command_line": raw_gen.get("command_line"),
+        "wallclock_ms": gen_response.latency_ms,
+        "claude_duration_ms": raw_gen.get("duration_ms"),
+        "claude_api_duration_ms": raw_gen.get("duration_api_ms"),
+        "session_id": raw_gen.get("session_id"),
+        "total_cost_usd": raw_gen.get("total_cost_usd"),
+        "model_usage": raw_gen.get("modelUsage"),
+        "usage": raw_gen.get("usage") or {
+            "input_tokens": gen_response.input_tokens,
+            "output_tokens": gen_response.output_tokens,
+        },
         "structured_output": gen_structured,
         "answer_text": answer_text,
         "framing_leak_hits": framing_hits,
@@ -622,7 +440,7 @@ def run_one_prompt(
     }
     _append_jsonl(generator_jsonl, gen_record)
 
-    # 4. Judge user message + call.
+    # 4. Judge call.
     judge_system, judge_user = render_judge_system_and_user(
         judge_template_raw, rubric_text,
         operator_prompt=operator_prompt,
@@ -635,57 +453,22 @@ def run_one_prompt(
         generator_output_json=json.dumps(gen_structured),
     )
 
-    # Write judge system prompt to a tempfile so the locked --system-prompt-file
-    # CLI shape is preserved.
-    judge_sp_tmp = generator_jsonl.parent.parent / "tmp" / f"judge_sp_{prompt_id}.txt"
-    judge_sp_tmp.parent.mkdir(parents=True, exist_ok=True)
-    judge_sp_tmp.write_text(judge_system)
-
     try:
-        cr2 = call_claude(
+        judge_response = backend.call(
             model=JUDGE_MODEL,
-            system_prompt_file=judge_sp_tmp,
-            json_schema=judge_schema,
+            system_prompt=judge_system,
             user_message=judge_user,
+            output_schema=judge_schema,
+            max_tokens=JUDGE_MAX_TOKENS,
         )
-        if cr2.rc != 0:
-            time.sleep(30)
-            cr2 = call_claude(
-                model=JUDGE_MODEL,
-                system_prompt_file=judge_sp_tmp,
-                json_schema=judge_schema,
-                user_message=judge_user,
-            )
-        judge_payload = parse_response_or_halt(cr2, prompt_id=prompt_id)
-        judge_model_served = assert_model_prefix(
-            judge_payload, JUDGE_PREFIX, prompt_id=prompt_id, cmd=cr2.cmd,
-        )
-        judge_structured = extract_structured_output(
-            judge_payload, cmd=cr2.cmd, prompt_id=prompt_id,
-        )
-        try:
-            jsonschema.validate(judge_structured, judge_schema)
-        except jsonschema.ValidationError:
-            time.sleep(30)
-            cr2 = call_claude(
-                model=JUDGE_MODEL,
-                system_prompt_file=judge_sp_tmp,
-                json_schema=judge_schema,
-                user_message=judge_user,
-            )
-            judge_payload = parse_response_or_halt(cr2, prompt_id=prompt_id)
-            judge_model_served = assert_model_prefix(
-                judge_payload, JUDGE_PREFIX, prompt_id=prompt_id, cmd=cr2.cmd,
-            )
-            judge_structured = extract_structured_output(
-                judge_payload, cmd=cr2.cmd, prompt_id=prompt_id,
-            )
-            validate_or_halt(
-                judge_structured, judge_schema,
-                label="judge (retry)", cmd=cr2.cmd, prompt_id=prompt_id,
-            )
-    finally:
-        judge_sp_tmp.unlink(missing_ok=True)
+    except HaltError as exc:
+        if exc.last_prompt_id is None:
+            exc.last_prompt_id = prompt_id
+        raise
+
+    assert_model_version(judge_response, JUDGE_PREFIX, prompt_id=prompt_id, role="judge")
+
+    judge_structured = judge_response.structured_output or {}
 
     # Cross-check op-validity locally as a deterministic shadow.
     runner_check = op_validity_check(
@@ -696,20 +479,25 @@ def run_one_prompt(
     rationale = judge_structured.get("faithfulness_rationale", "")
     payload_field_refs = _scan_payload_field_references(rationale, payload)
 
+    raw_judge = judge_response.raw_response
     judge_record = {
         "timestamp": _utcnow(),
         "run_id": judge_jsonl.stem,
         "prompt_id": prompt_id,
+        "backend": backend.name(),
         "model_requested": JUDGE_MODEL,
-        "model_served": judge_model_served,
-        "command_line": cr2.cmd,
-        "wallclock_ms": cr2.elapsed_ms,
-        "claude_duration_ms": judge_payload.get("duration_ms"),
-        "claude_api_duration_ms": judge_payload.get("duration_api_ms"),
-        "session_id": judge_payload.get("session_id"),
-        "total_cost_usd": judge_payload.get("total_cost_usd"),
-        "model_usage": judge_payload.get("modelUsage"),
-        "usage": judge_payload.get("usage"),
+        "model_served": judge_response.model_version,
+        "command_line": raw_judge.get("command_line"),
+        "wallclock_ms": judge_response.latency_ms,
+        "claude_duration_ms": raw_judge.get("duration_ms"),
+        "claude_api_duration_ms": raw_judge.get("duration_api_ms"),
+        "session_id": raw_judge.get("session_id"),
+        "total_cost_usd": raw_judge.get("total_cost_usd"),
+        "model_usage": raw_judge.get("modelUsage"),
+        "usage": raw_judge.get("usage") or {
+            "input_tokens": judge_response.input_tokens,
+            "output_tokens": judge_response.output_tokens,
+        },
         "structured_output": judge_structured,
         "runner_op_validity": runner_check,
         "judge_vs_runner_agreement": {
@@ -737,14 +525,7 @@ def run_one_prompt(
 
 
 def _scan_payload_field_references(rationale: str, payload: dict) -> list[str]:
-    """Heuristic check: flag identifier-like tokens in the rationale that look
-    like a payload-field reference but aren't actually keys in the payload.
-
-    This is a soft scan — false positives are normal. The smoke test
-    eyeballs the output regardless; this just surfaces candidates.
-    """
-    # Collect actual payload keys (one level deep is enough; the
-    # generator/judge can't reasonably reference deeper paths in prose).
+    """Heuristic: flag backtick-quoted tokens in rationale not in payload keys."""
     actual = set()
     def _collect(d):
         if isinstance(d, dict):
@@ -756,8 +537,6 @@ def _scan_payload_field_references(rationale: str, payload: dict) -> list[str]:
             for item in d:
                 _collect(item)
     _collect(payload)
-
-    # Candidate tokens: snake_case identifiers in backticks.
     cands = set(re.findall(r"`([a-z_][a-z0-9_]+)`", rationale))
     return sorted(c for c in cands if c not in actual)
 
@@ -815,6 +594,7 @@ def join_results(run_id: str, results_root: Path, prompts_csv: Path) -> Path:
         "generator_model_served", "judge_model_served",
         "generator_wallclock_ms", "judge_wallclock_ms",
         "generator_cost_usd", "judge_cost_usd",
+        "backend",
     ]
     with out_path.open("w", newline="") as fh:
         w = _csv.DictWriter(fh, fieldnames=cols)
@@ -870,20 +650,32 @@ def join_results(run_id: str, results_root: Path, prompts_csv: Path) -> Path:
                 "judge_wallclock_ms": jr.get("wallclock_ms"),
                 "generator_cost_usd": gr.get("total_cost_usd"),
                 "judge_cost_usd": jr.get("total_cost_usd"),
+                "backend": gr.get("backend", "claude-code"),
             })
     return out_path
 
 
-def append_run_log(*, run_id: str, results_root: Path, start_iso: str,
-                   end_iso: str, n_attempted: int, n_completed: int,
-                   n_halts: int, n_retries: int,
-                   total_tokens: int, total_wall: float,
-                   gen_model_served: str | None,
-                   judge_model_served: str | None) -> None:
+def append_run_log(
+    *,
+    run_id: str,
+    results_root: Path,
+    start_iso: str,
+    end_iso: str,
+    n_attempted: int,
+    n_completed: int,
+    n_halts: int,
+    n_retries: int,
+    total_tokens: int,
+    total_wall: float,
+    gen_model_served: str | None,
+    judge_model_served: str | None,
+    backend_name: str = "claude-code",
+) -> None:
     import csv as _csv
     log_path = results_root / "run_log.csv"
     cols = [
         "run_id", "start_time", "end_time", "git_commit",
+        "backend",
         "generator_model_served", "judge_model_served",
         "n_prompts_attempted", "n_prompts_completed", "n_halts", "n_retries",
         "total_token_usage", "total_wall_clock_seconds",
@@ -897,6 +689,7 @@ def append_run_log(*, run_id: str, results_root: Path, start_iso: str,
         "start_time": start_iso,
         "end_time": end_iso,
         "git_commit": commit,
+        "backend": backend_name,
         "generator_model_served": gen_model_served or "",
         "judge_model_served": judge_model_served or "",
         "n_prompts_attempted": n_attempted,
@@ -938,10 +731,25 @@ def _load_locked_inputs() -> dict[str, Any]:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Run the closing experiment.")
-    ap.add_argument("--run-id", required=True, help="Identifier, e.g. smoke-v1, pilot-v1, full-v1.")
+    ap.add_argument("--run-id", required=True,
+                    help="Identifier, e.g. smoke-v1, pilot-v1, full-v1.")
     ap.add_argument("--prompt-ids", required=True,
                     help="Comma-separated prompt_ids, or 'all' for the full 48.")
+    ap.add_argument("--backend", default="claude-code",
+                    choices=["claude-code", "api"],
+                    help="Execution backend (default: claude-code).")
     args = ap.parse_args()
+
+    # Pre-flight: API key check for API backend.
+    if args.backend == "api" and not os.environ.get("ANTHROPIC_API_KEY"):
+        print(
+            "[HALT] --backend api requires ANTHROPIC_API_KEY env var. "
+            "Set it with: export ANTHROPIC_API_KEY='sk-ant-...'",
+            file=sys.stderr,
+        )
+        return 2
+
+    backend = get_backend(args.backend)
 
     run_id = args.run_id
     results_root = _REPO / "experiment" / "results"
@@ -968,14 +776,12 @@ def main() -> int:
                 f"Delete or rename before re-running."
             )
 
-        # Local context capture.
-        capture_local_context(run_id, results_root)
+        # Capture environment.
+        env_out = write_environment_artifact(backend, run_id, results_root)
+        print(f"[run] environment captured → {env_out}", flush=True)
 
         # Load locked configs.
         locked = _load_locked_inputs()
-        gen_head_path = run_root / "tmp" / "generator_system_head.txt"
-        gen_head_path.parent.mkdir(parents=True, exist_ok=True)
-        gen_head_path.write_text(locked["gen_head"])
 
         # Load prompts.
         import csv as _csv
@@ -995,25 +801,25 @@ def main() -> int:
                 raise HaltError(f"unknown prompt_ids: {missing}")
             scope = [by_id[i] for i in ids]
 
-        print(f"[run] {run_id}: {len(scope)} prompts in scope", flush=True)
-
-        # Smoke models pre-flight: one trivial generator call + one judge call.
-        # Skip the smoke models pre-flight ONLY when scope is one prompt (smoke
-        # test calls main() multiple times); these always run for real runs.
-        # The cheapest way to satisfy "verify model versions reachable" is
-        # to just start the loop — the first prompt will fail the model
-        # assertion if the served model is wrong. We DON'T bother with a
-        # separate warm-up call to save quota.
+        print(
+            f"[run] {run_id}: {len(scope)} prompts in scope "
+            f"(backend={backend.name()})",
+            flush=True,
+        )
 
         for prompt_row in scope:
             n_attempted += 1
             pid = prompt_row["prompt_id"]
-            print(f"  [{n_attempted}/{len(scope)}] prompt {pid} "
-                  f"family={prompt_row['family']} dataset={prompt_row['dataset']} "
-                  f"action={prompt_row['action_taken']}", flush=True)
+            print(
+                f"  [{n_attempted}/{len(scope)}] prompt {pid} "
+                f"family={prompt_row['family']} dataset={prompt_row['dataset']} "
+                f"action={prompt_row['action_taken']}",
+                flush=True,
+            )
             outcome = run_one_prompt(
                 prompt_row=prompt_row,
-                generator_system_head=gen_head_path,
+                backend=backend,
+                generator_system_head=locked["gen_head"],
                 generator_template_tail=locked["gen_tail"],
                 judge_template_raw=locked["judge_template_raw"],
                 rubric_text=locked["rubric_text"],
@@ -1026,15 +832,21 @@ def main() -> int:
             judge_model_served = outcome.judge_record["model_served"]
             n_completed += 1
             if outcome.framing_leak_hits:
-                print(f"    [warn] framing-leak patterns: {outcome.framing_leak_hits}",
-                      flush=True)
+                print(
+                    f"    [warn] framing-leak patterns: {outcome.framing_leak_hits}",
+                    flush=True,
+                )
             if outcome.payload_external_field_refs:
-                print(f"    [warn] judge rationale references non-payload tokens: "
-                      f"{outcome.payload_external_field_refs}", flush=True)
+                print(
+                    f"    [warn] judge rationale references non-payload tokens: "
+                    f"{outcome.payload_external_field_refs}",
+                    flush=True,
+                )
 
         # Join.
         join_path = join_results(run_id, results_root, prompts_csv)
         print(f"[run] joined → {join_path}", flush=True)
+
     except HaltError as err:
         _write_halt_report(run_root, err, n_completed, assertion=str(err))
         print(f"[HALT] {err}", flush=True, file=sys.stderr)
@@ -1042,8 +854,6 @@ def main() -> int:
     finally:
         end_iso = _utcnow()
         t_end = time.perf_counter() - t_start
-        # Best-effort total tokens: read generator + judge jsonl and sum
-        # input_tokens + output_tokens fields.
         total_tokens = 0
         for jp in (gen_jsonl, judge_jsonl):
             if jp.exists():
@@ -1064,6 +874,7 @@ def main() -> int:
             total_tokens=total_tokens, total_wall=t_end,
             gen_model_served=gen_model_served,
             judge_model_served=judge_model_served,
+            backend_name=backend.name(),
         )
     return 0
 
