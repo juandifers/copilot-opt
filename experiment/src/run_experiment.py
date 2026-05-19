@@ -524,9 +524,29 @@ def run_one_prompt(
     )
 
 
+_GENERATOR_OUTPUT_SCHEMA_KEYS = frozenset({
+    "answer_text",
+    "claimed_objective",
+    "claimed_feasible",
+    "claimed_route_count",
+    "claimed_route_membership",
+    "claimed_late_customers",
+    "claimed_customer_timings",
+})
+
+
 def _scan_payload_field_references(rationale: str, payload: dict) -> list[str]:
-    """Heuristic: flag backtick-quoted tokens in rationale not in payload keys."""
-    actual = set()
+    """Heuristic for failure mode (d): flag backtick-snake_case tokens in
+    the judge rationale that aren't in the payload's keys.
+
+    The allow-list is (payload keys ∪ generator-output schema keys). The
+    generator-output schema keys are legitimate references the judge makes
+    when comparing the generator's structured claims to the payload (e.g.,
+    `claimed_objective` vs `action_objective`), and flagging them as
+    hallucinated payload fields is a false positive. See
+    experiment/methodology_deviations.md deviation #2.
+    """
+    actual: set[str] = set(_GENERATOR_OUTPUT_SCHEMA_KEYS)
     def _collect(d):
         if isinstance(d, dict):
             for k, v in d.items():
