@@ -106,3 +106,49 @@ in a judge rationale). The calibration jsonl is re-scanned post-hoc
 under the widened heuristic; it produces the same 0/20 result as
 before, confirming the widening did not retroactively change any
 calibration finding.
+
+## Deviation 3: Failure-mode (d) heuristic skips refusal contexts
+
+Date: 2026-05-19
+Affected protocol: run_experiment.py failure-mode scan (d)
+Scope: tooling heuristic; the locked rubric and locked schemas are unchanged.
+
+**What happened.** After Deviation #2 restarted full-run-v1, the
+heuristic fired again on prompt 025 (STRUCT Solomon, perturbation
+OC_2). Generator correctly refused
+("The data does not contain this information") because the SOLUTION
+DATA payload contains only `n_routes` and `routes`, with no field
+identifying which customer is new. Judge correctly assessed the
+refusal as faithful (faithfulness=5, op_validity_pass=null,
+refusal_detected=true), and in the rationale wrote:
+"Answering the question would require either a `new_customer_ids`
+field or prior knowledge ... — neither of which is present in the
+payload." The token `new_customer_ids` was backticked
+*counterfactually* — the judge explicitly stated it is not present.
+
+**Why this is a false positive.** The (d) failure mode is "judge
+hallucinates a payload field as if it exists in the data." That
+requires a positive claim. Refusal-context judge rationales by
+definition explain absence ("would have required X", "neither X nor
+Y is present"). Counterfactual field-naming is the expected rhetoric
+in refusal explanations, not hallucination.
+
+**The fix.** The (d) scan is skipped when the judge sets
+`refusal_detected=true` AND `op_validity_pass=null` (the two
+co-occurring rubric §d markers). On non-refusal prompts the
+heuristic still applies, still using the (payload ∪ generator-output
+schema) allow-list from Deviation #2.
+
+**Why this is not silent rubric tampering.** Same reasoning as
+Deviation #2: the fix is to the runner's heuristic, not to the
+locked rubric or schemas. The methodology question "what counts as a
+(d) hallucination?" is unchanged. The pre-existing heuristic over-
+matched on a second category of false positives (refusal-context
+counterfactuals); this revision narrows it.
+
+**Verification before the restart.** The narrowed heuristic skips
+prompt 025's rationale (no flag). The constructed-positive case
+(invented payload field in a non-refusal rationale) still fires.
+The 20 calibration judges (no refusals) and the 24 non-refusal
+full-run-v1 records before halt all re-scan to 0 hits, confirming
+the narrowing did not retroactively change any prior finding.

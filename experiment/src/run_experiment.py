@@ -476,8 +476,20 @@ def run_one_prompt(
     )
 
     # Field-reference scan in judge rationale (failure mode (d) check).
+    # Skipped in refusal contexts: refusal rationales explain absence
+    # ("would have required `X`"; "neither `X` nor `Y` is present"), so
+    # backtick-snake_case tokens there are by construction counterfactual,
+    # not positive payload-field claims. See
+    # experiment/methodology_deviations.md deviation #3.
     rationale = judge_structured.get("faithfulness_rationale", "")
-    payload_field_refs = _scan_payload_field_references(rationale, payload)
+    is_refusal_context = (
+        judge_structured.get("refusal_detected") is True
+        and judge_structured.get("op_validity_pass") is None
+    )
+    payload_field_refs = (
+        [] if is_refusal_context
+        else _scan_payload_field_references(rationale, payload)
+    )
 
     raw_judge = judge_response.raw_response
     judge_record = {
