@@ -152,3 +152,34 @@ prompt 025's rationale (no flag). The constructed-positive case
 The 20 calibration judges (no refusals) and the 24 non-refusal
 full-run-v1 records before halt all re-scan to 0 hits, confirming
 the narrowing did not retroactively change any prior finding.
+
+## Deviation 4: Route-indexing convention disagreement (prompt 040)
+
+Date: 2026-05-19
+Affected protocol: rubric.md SCHEDULE op-validity (preregistration-v1)
+
+**What happened.** Verification surfaced one |diff|=2 disagreement on
+prompt 040 (SCHEDULE, FN pool). Generator answer: "Route 1 wraps up
+at 871.3 solomon_minutes." Judge read "Route 1" as PyVRP's 1-indexed
+user-facing convention (route_idx=0, end_time=864.1) and scored
+faithfulness=3, op_validity_pass=False. Human read "Route 1" as
+payload-canonical route_idx=1, end_time=871.3 exact, and scored
+faithfulness=5, op_validity_pass=True.
+
+Both readings are defensible. This is a convention dispute, not a
+hallucination — the generator named a value that does appear in the
+payload.
+
+**Decision.** Locked decision rule applies: |diff|>=2 prompts are
+flagged for discussion but do not alter headline scores. Analysis
+remains judge-driven. The convention ambiguity is reported in the
+discussion section as a methodology observation alongside the STRUCT
+set-semantics contradiction and the calibration degeneracy (both
+documented in Deviation 1).
+
+**Mitigating control.** The thesis discussion explicitly documents
+the route-indexing convention as ambiguous between PyVRP user-facing
+(1-indexed display) and payload-canonical (0-indexed array). Future
+iterations of the SCHEDULE payload should resolve this by either
+always reporting both indexes or normalizing on one convention
+pre-emptively.

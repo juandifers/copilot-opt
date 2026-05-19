@@ -238,6 +238,20 @@ def main() -> int:
             "into the generated rows, so the .md reflects filled state."
         ),
     )
+    ap.add_argument(
+        "--prompt-ids",
+        default=None,
+        help=(
+            "Restrict to these prompt_ids. Pass a comma-separated list "
+            "(e.g. '001,005,012') OR '@path/to/csv' to read the "
+            "prompt_id column from a CSV (e.g. verification_set.csv)."
+        ),
+    )
+    ap.add_argument(
+        "--out-dir",
+        default=str(REPO / "experiment" / "pilot"),
+        help="Output directory. Default: experiment/pilot/.",
+    )
     args = ap.parse_args()
 
     run_id = args.run_id
@@ -248,6 +262,24 @@ def main() -> int:
     if missing:
         print(f"ERROR: generator records missing for {missing}", file=sys.stderr)
         return 1
+
+    if args.prompt_ids:
+        if args.prompt_ids.startswith("@"):
+            id_csv_path = Path(args.prompt_ids[1:])
+            wanted = {
+                r["prompt_id"] for r in csv.DictReader(id_csv_path.open())
+            }
+        else:
+            wanted = {p.strip() for p in args.prompt_ids.split(",") if p.strip()}
+        joined_rows = [r for r in joined_rows if r["prompt_id"] in wanted]
+        unknown = wanted - {r["prompt_id"] for r in joined_rows}
+        if unknown:
+            print(
+                f"ERROR: --prompt-ids referenced ids not in joined CSV: "
+                f"{sorted(unknown)}",
+                file=sys.stderr,
+            )
+            return 1
 
     rows = [build_row(jr, gen_records[jr["prompt_id"]]) for jr in joined_rows]
 
@@ -262,9 +294,10 @@ def main() -> int:
                 continue
             for c in HUMAN_COLUMNS:
                 r[c] = f.get(c, "")
-    out_csv = REPO / "experiment" / "pilot" / f"{args.sheet_stem}.csv"
-    out_md = REPO / "experiment" / "pilot" / f"{args.sheet_stem}.md"
-    out_csv.parent.mkdir(parents=True, exist_ok=True)
+    out_dir = Path(args.out_dir)
+    out_csv = out_dir / f"{args.sheet_stem}.csv"
+    out_md = out_dir / f"{args.sheet_stem}.md"
+    out_dir.mkdir(parents=True, exist_ok=True)
     write_csv(rows, out_csv)
     write_md(rows, out_md)
     print(f"Wrote {len(rows)} rows → {out_csv}")
