@@ -1,0 +1,16 @@
+case_id,implementation_status,family,difficulty,expected_intent,predicted_intent,expected_answerability,predicted_answerability,expected_behavior_class,predicted_behavior_class,intent_correct,answerability_correct,behavior_class_correct,evidence_precision,evidence_recall,warning_precision,warning_recall,missing_field_recall,useful_refusal_correct,partial_answer_correct
+R2-001,current,OBJ,easy,objective_value,objective_value,answerable,answerable,direct_answer,direct_answer,1,1,1,1.0000,1.0000,1.0000,1.0000,1.0000,,
+R2-002,current,OBJ,medium,objective_delta,objective_delta,answerable,answerable,direct_answer,direct_answer,1,1,1,1.0000,1.0000,1.0000,1.0000,1.0000,,
+R2-003,current,STRUCT,medium,new_customer_assignment,new_customer_assignment,partially_answerable,partially_answerable,useful_refusal,useful_refusal,1,1,1,1.0000,1.0000,1.0000,1.0000,1.0000,1,
+R2-004,current,STRUCT,medium,single_customer_route_membership,single_customer_route_membership,answerable,answerable,direct_answer_with_warning,direct_answer_with_warning,1,1,1,1.0000,1.0000,1.0000,1.0000,1.0000,,
+R2-005,current,STRUCT,easy,before_after_comparison,before_after_comparison,not_answerable,not_answerable,useful_refusal,useful_refusal,1,1,1,1.0000,1.0000,1.0000,1.0000,1.0000,1,
+R2-006,current,SCHEDULE,medium,route_end_time,route_end_time,answerable,answerable,direct_answer_with_warning,direct_answer_with_warning,1,1,1,1.0000,1.0000,1.0000,1.0000,1.0000,,
+R2-007,current,SCHEDULE,easy,customer_arrival,customer_arrival,answerable,answerable,direct_answer,direct_answer,1,1,1,1.0000,1.0000,1.0000,1.0000,1.0000,,
+R2-008,target_extension,SCHEDULE,hard,customer_arrival,customer_arrival,not_answerable,answerable,useful_refusal,direct_answer,1,0,0,0.0000,1.0000,0.0000,0.0000,1.0000,0,
+R2-009,current,STRUCT,medium,same_route_boolean,same_route_boolean,answerable,answerable,direct_answer,direct_answer,1,1,1,1.0000,1.0000,1.0000,1.0000,1.0000,,
+R2-010,target_extension,STRUCT,hard,full_route_listing,new_customer_assignment,answerable,partially_answerable,direct_answer,useful_refusal,0,0,0,0.0000,0.0000,0.0000,1.0000,1.0000,,
+R2-011,current,PLAN_VALIDITY,easy,feasibility_status,feasibility_status,answerable,answerable,direct_answer,direct_answer,1,1,1,0.8000,1.0000,1.0000,1.0000,1.0000,,
+R2-012,target_extension,PLAN_VALIDITY,medium,feasibility_status,feasibility_status,not_answerable,not_answerable,useful_refusal,useful_refusal,1,1,1,0.0000,1.0000,1.0000,1.0000,1.0000,0,
+R2-013,target_extension,OBJ,hard,objective_delta,objective_delta,partially_answerable,answerable,partial_answer_with_warning,direct_answer,1,0,0,1.0000,1.0000,0.0000,0.0000,0.0000,,0
+R2-014,target_extension,OBJ,medium,objective_value,objective_value,partially_answerable,partially_answerable,partial_answer_with_warning,partial_answer_with_warning,1,1,1,1.0000,1.0000,0.0000,0.0000,1.0000,,0
+R2-015,target_extension,SCHEDULE,hard,route_end_time,route_end_time,not_answerable,answerable,useful_refusal,direct_answer_with_warning,1,0,0,1.0000,1.0000,0.0000,0.0000,1.0000,0,
