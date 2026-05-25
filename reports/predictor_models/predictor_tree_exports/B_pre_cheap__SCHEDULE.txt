@@ -1,0 +1,38 @@
+# DecisionTreeClassifier, max_depth=4, min_samples_leaf=20
+# feature_set=B_pre_cheap, claim_family=SCHEDULE
+# Trained on folds != 0; evaluated for export only.
+
+|--- perturbation_magnitude <= 2.50
+|   |--- baseline_generalized_cost <= 15678.90
+|   |   |--- affected_min_slack <= 50.00
+|   |   |   |--- affected_total_wait <= 342.50
+|   |   |   |   |--- class: 0
+|   |   |   |--- affected_total_wait >  342.50
+|   |   |   |   |--- class: 1
+|   |   |--- affected_min_slack >  50.00
+|   |   |   |--- class: 1
+|   |--- baseline_generalized_cost >  15678.90
+|   |   |--- perturbation_family=TRAVEL_TIME <= 0.50
+|   |   |   |--- affected_total_wait <= 3.00
+|   |   |   |   |--- class: 1
+|   |   |   |--- affected_total_wait >  3.00
+|   |   |   |   |--- class: 1
+|   |   |--- perturbation_family=TRAVEL_TIME >  0.50
+|   |   |   |--- class: 1
+|--- perturbation_magnitude >  2.50
+|   |--- baseline_total_wait <= 17110.00
+|   |   |--- affected_mean_slack <= 563.81
+|   |   |   |--- n_affected_customers <= 26.50
+|   |   |   |   |--- class: 0
+|   |   |   |--- n_affected_customers >  26.50
+|   |   |   |   |--- class: 0
+|   |   |--- affected_mean_slack >  563.81
+|   |   |   |--- affected_demand_share <= 0.33
+|   |   |   |   |--- class: 0
+|   |   |   |--- affected_demand_share >  0.33
+|   |   |   |   |--- class: 0
+|   |--- baseline_total_wait >  17110.00
+|   |   |--- affected_demand_share <= 0.28
+|   |   |   |--- class: 1
+|   |   |--- affected_demand_share >  0.28
+|   |   |   |--- class: 0

@@ -1,0 +1,20 @@
+# DecisionTreeClassifier, max_depth=4, min_samples_leaf=20
+# feature_set=C_clean, claim_family=OBJ
+# Trained on folds != 0; evaluated for export only.
+
+|--- action_total_duration <= 100037.00
+|   |--- action_time_warp <= 660.00
+|   |   |--- action_generalized_delta_pct <= 0.04
+|   |   |   |--- action_time_warp <= 381.00
+|   |   |   |   |--- class: 1
+|   |   |   |--- action_time_warp >  381.00
+|   |   |   |   |--- class: 1
+|   |   |--- action_generalized_delta_pct >  0.04
+|   |   |   |--- class: 1
+|   |--- action_time_warp >  660.00
+|   |   |--- class: 1
+|--- action_total_duration >  100037.00
+|   |--- action_n_late_customers <= 6.00
+|   |   |--- class: 0
+|   |--- action_n_late_customers >  6.00
+|   |   |--- class: 0

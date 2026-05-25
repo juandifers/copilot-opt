@@ -8,7 +8,7 @@ def get_backend(name: str) -> ModelBackend:
     """Instantiate and return the named backend.
 
     Args:
-        name: One of 'claude-code' or 'api'.
+        name: One of 'claude-code', 'api', or 'openai'.
 
     Raises:
         ValueError: For unknown names.
@@ -19,6 +19,9 @@ def get_backend(name: str) -> ModelBackend:
     if name == "api":
         from .api import APIBackend
         return APIBackend()
+    if name == "openai":
+        from .openai_backend import OpenAIBackend
+        return OpenAIBackend()
     raise ValueError(
-        f"unknown backend {name!r}; valid choices are 'claude-code' and 'api'"
+        f"unknown backend {name!r}; valid choices are 'claude-code', 'api', 'openai'"
     )

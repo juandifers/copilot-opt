@@ -51,6 +51,27 @@ _REQUIRED_FIELDS: dict[str, list[str]] = {
     "full_route_listing": ["routes[].customer_ids"],
     "refusal_or_insufficient_payload": [],
     "unknown": [],
+    # Overview / explanation intents.
+    #
+    # ``perturbation_summary`` / ``scenario_summary`` are answered from
+    # perturbation metadata (always derivable from perturbation_id) plus
+    # whatever solution-shape signal the payload carries. We list no
+    # required payload fields because the perturbation card itself is
+    # always producible from the scenario row.
+    "perturbation_summary": [],
+    "scenario_summary": [],
+    # ``solution_summary`` needs at least one solution-shape signal.
+    # ``feasible`` is the most common headline; the other signals fall
+    # through naturally as additional context.
+    "solution_summary": ["feasible"],
+    # Impact intents need baseline + diff to give a full answer. When
+    # missing, the contract returns partially_answerable and the
+    # renderer falls back to a current-state description.
+    "perturbation_impact_summary": ["baseline_solution", "diff"],
+    "route_impact_summary": ["baseline_solution", "diff"],
+    # ``what_to_watch`` is answerable from any solution-shape signal —
+    # there's always something to point at.
+    "what_to_watch": [],
 }
 
 
@@ -115,6 +136,62 @@ def compute_answerability(
         status = "partially_answerable"
     else:
         status = "not_answerable"
+
+    # Overview-intent graceful degradation.
+    #
+    # Impact intents (perturbation_impact_summary, route_impact_summary)
+    # require baseline_solution + diff for a full answer, but a useful
+    # *partial* answer is still possible whenever the payload exposes a
+    # current solution — the renderer describes current status and says
+    # impact cannot be quantified without comparison data. Treating these
+    # as not_answerable here would silence that partial answer, which is
+    # the whole point of grounded overview support.
+    _OVERVIEW_IMPACT_INTENTS = {
+        "perturbation_impact_summary",
+        "route_impact_summary",
+    }
+    if intent in _OVERVIEW_IMPACT_INTENTS and status == "not_answerable":
+        if isinstance(payload, dict) and any(
+            k in payload
+            for k in (
+                "feasible",
+                "action_objective",
+                "routes",
+                "customer_schedule",
+                "n_routes",
+            )
+        ):
+            status = "partially_answerable"
+
+    # solution_summary degrades to partial when the headline feasibility
+    # flag is missing but some other solution-shape signal is present
+    # (routes / objective / schedule). Without this, a payload that
+    # exposes routes but not feasibility would be reported as
+    # not_answerable, suppressing the renderer's natural fallback.
+    if intent == "solution_summary" and status == "not_answerable":
+        if isinstance(payload, dict) and any(
+            k in payload
+            for k in ("action_objective", "routes", "customer_schedule", "n_routes")
+        ):
+            status = "partially_answerable"
+
+    # OBJ-inline escape hatch for perturbation_impact_summary.
+    #
+    # OBJ-family payloads carry ``baseline_objective`` and
+    # ``objective_delta_absolute`` inline rather than as a separate
+    # ``baseline_solution`` / ``diff`` block. For the *objective-level*
+    # impact question, that inline data is enough to give an actual
+    # answer (the renderer cites the delta). The route-level impact
+    # intent still needs a route-level diff, so this escape hatch is
+    # intent-specific.
+    if (
+        intent == "perturbation_impact_summary"
+        and isinstance(payload, dict)
+        and payload.get("baseline_objective") is not None
+        and payload.get("objective_delta_absolute") is not None
+    ):
+        status = "answerable"
+        missing = []
 
     # False-premise override (schema §12): if the prompt names a
     # customer or route that does not exist in the payload, the

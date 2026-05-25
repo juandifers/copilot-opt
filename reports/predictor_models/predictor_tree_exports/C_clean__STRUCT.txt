@@ -1,0 +1,41 @@
+# DecisionTreeClassifier, max_depth=4, min_samples_leaf=20
+# feature_set=C_clean, claim_family=STRUCT
+# Trained on folds != 0; evaluated for export only.
+
+|--- action_n_late_customers <= 1.50
+|   |--- action_total_duration <= 52574.00
+|   |   |--- action_obj_delta_pct <= 0.00
+|   |   |   |--- action_total_duration <= 44612.50
+|   |   |   |   |--- class: 1
+|   |   |   |--- action_total_duration >  44612.50
+|   |   |   |   |--- class: 0
+|   |   |--- action_obj_delta_pct >  0.00
+|   |   |   |--- action_generalized_delta_pct <= 0.01
+|   |   |   |   |--- class: 0
+|   |   |   |--- action_generalized_delta_pct >  0.01
+|   |   |   |   |--- class: 0
+|   |--- action_total_duration >  52574.00
+|   |   |--- action_obj_delta_pct <= 0.04
+|   |   |   |--- action_total_wait <= 355.00
+|   |   |   |   |--- class: 1
+|   |   |   |--- action_total_wait >  355.00
+|   |   |   |   |--- class: 1
+|   |   |--- action_obj_delta_pct >  0.04
+|   |   |   |--- class: 1
+|--- action_n_late_customers >  1.50
+|   |--- action_total_duration <= 71278.50
+|   |   |--- action_max_lateness <= 34.50
+|   |   |   |--- class: 0
+|   |   |--- action_max_lateness >  34.50
+|   |   |   |--- action_n_late_customers <= 2.50
+|   |   |   |   |--- class: 0
+|   |   |   |--- action_n_late_customers >  2.50
+|   |   |   |   |--- class: 0
+|   |--- action_total_duration >  71278.50
+|   |   |--- action_total_duration <= 103203.50
+|   |   |   |--- baseline_min_route_slack <= 12.50
+|   |   |   |   |--- class: 1
+|   |   |   |--- baseline_min_route_slack >  12.50
+|   |   |   |   |--- class: 1
+|   |   |--- action_total_duration >  103203.50
+|   |   |   |--- class: 0

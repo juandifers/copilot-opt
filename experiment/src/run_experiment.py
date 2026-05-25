@@ -361,6 +361,10 @@ def run_one_prompt(
     judge_schema: dict,
     generator_jsonl: Path,
     judge_jsonl: Path,
+    generator_model: str = GENERATOR_MODEL,
+    generator_prefix: str = GENERATOR_PREFIX,
+    judge_model: str = JUDGE_MODEL,
+    judge_prefix: str = JUDGE_PREFIX,
 ) -> PromptOutcome:
     prompt_id = prompt_row["prompt_id"]
     family = prompt_row["family"]
@@ -391,7 +395,7 @@ def run_one_prompt(
 
     try:
         gen_response = backend.call(
-            model=GENERATOR_MODEL,
+            model=generator_model,
             system_prompt=generator_system_head,
             user_message=gen_user_msg,
             output_schema=generator_schema,
@@ -402,7 +406,7 @@ def run_one_prompt(
             exc.last_prompt_id = prompt_id
         raise
 
-    assert_model_version(gen_response, GENERATOR_PREFIX, prompt_id=prompt_id, role="generator")
+    assert_model_version(gen_response, generator_prefix, prompt_id=prompt_id, role="generator")
 
     gen_structured = gen_response.structured_output or {}
     answer_text = gen_response.answer_text
@@ -420,7 +424,7 @@ def run_one_prompt(
         "run_id": generator_jsonl.stem,
         "prompt_id": prompt_id,
         "backend": backend.name(),
-        "model_requested": GENERATOR_MODEL,
+        "model_requested": generator_model,
         "model_served": gen_response.model_version,
         "command_line": raw_gen.get("command_line"),
         "wallclock_ms": gen_response.latency_ms,
@@ -455,7 +459,7 @@ def run_one_prompt(
 
     try:
         judge_response = backend.call(
-            model=JUDGE_MODEL,
+            model=judge_model,
             system_prompt=judge_system,
             user_message=judge_user,
             output_schema=judge_schema,
@@ -466,7 +470,7 @@ def run_one_prompt(
             exc.last_prompt_id = prompt_id
         raise
 
-    assert_model_version(judge_response, JUDGE_PREFIX, prompt_id=prompt_id, role="judge")
+    assert_model_version(judge_response, judge_prefix, prompt_id=prompt_id, role="judge")
 
     judge_structured = judge_response.structured_output or {}
 
@@ -497,7 +501,7 @@ def run_one_prompt(
         "run_id": judge_jsonl.stem,
         "prompt_id": prompt_id,
         "backend": backend.name(),
-        "model_requested": JUDGE_MODEL,
+        "model_requested": judge_model,
         "model_served": judge_response.model_version,
         "command_line": raw_judge.get("command_line"),
         "wallclock_ms": judge_response.latency_ms,
@@ -768,11 +772,11 @@ def main() -> int:
     ap.add_argument("--prompt-ids", required=True,
                     help="Comma-separated prompt_ids, or 'all' for the full 48.")
     ap.add_argument("--backend", default="claude-code",
-                    choices=["claude-code", "api"],
+                    choices=["claude-code", "api", "openai"],
                     help="Execution backend (default: claude-code).")
     args = ap.parse_args()
 
-    # Pre-flight: API key check for API backend.
+    # Pre-flight: API key checks.
     if args.backend == "api" and not os.environ.get("ANTHROPIC_API_KEY"):
         print(
             "[HALT] --backend api requires ANTHROPIC_API_KEY env var. "
@@ -780,8 +784,37 @@ def main() -> int:
             file=sys.stderr,
         )
         return 2
+    if args.backend == "openai" and not os.environ.get("OPENAI_API_KEY"):
+        # Also check .env via dotenv so the error message matches what
+        # the OpenAI client itself will raise.
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+        except ImportError:
+            pass
+        if not os.environ.get("OPENAI_API_KEY"):
+            print(
+                "[HALT] --backend openai requires OPENAI_API_KEY. "
+                "Add it to .env or set: export OPENAI_API_KEY='sk-...'",
+                file=sys.stderr,
+            )
+            return 2
 
     backend = get_backend(args.backend)
+
+    # Resolve per-backend model names and assertion prefixes.
+    # Claude backends use the locked constants; the OpenAI backend exposes
+    # its own model via properties and ignores the Claude name at call time.
+    if hasattr(backend, "generator_model"):
+        _gen_model = backend.generator_model
+        _gen_prefix = backend.generator_model_prefix
+        _judge_model = backend.judge_model
+        _judge_prefix = backend.judge_model_prefix
+    else:
+        _gen_model = GENERATOR_MODEL
+        _gen_prefix = GENERATOR_PREFIX
+        _judge_model = JUDGE_MODEL
+        _judge_prefix = JUDGE_PREFIX
 
     run_id = args.run_id
     results_root = _REPO / "experiment" / "results"
@@ -859,6 +892,10 @@ def main() -> int:
                 judge_schema=locked["judge_schema"],
                 generator_jsonl=gen_jsonl,
                 judge_jsonl=judge_jsonl,
+                generator_model=_gen_model,
+                generator_prefix=_gen_prefix,
+                judge_model=_judge_model,
+                judge_prefix=_judge_prefix,
             )
             gen_model_served = outcome.generator_record["model_served"]
             judge_model_served = outcome.judge_record["model_served"]

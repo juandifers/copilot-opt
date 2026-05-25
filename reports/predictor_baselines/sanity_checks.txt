@@ -1,0 +1,18 @@
+Cheap-action subset row counts:
+ claim_family  n_rows  n_non_nan  n_nan  sum_label
+          OBJ     896        889      7      813.0
+PLAN_VALIDITY     896        896      0      404.0
+     SCHEDULE     896        889      7      369.0
+       STRUCT     896        889      7      497.0
+
+Unique cell × claim_family rows: 3584 (all == 1).
+  TRAVEL_TIME    cheap = reuse_direct ✓
+  TIME_WINDOW    cheap = reuse_direct ✓
+  SERVICE_TIME   cheap = reuse_direct ✓
+  ORDER_CHANGE   cheap = local_repair_insert ✓
+
+No reference rows in the cheap-action subset.
+
+Degenerate (claim, pert) blocks:
+  OBJ            × TIME_WINDOW   rate = 1.000  (degenerate — pre-determined decision)
+  OBJ            × TRAVEL_TIME   rate = 0.973  (degenerate — pre-determined decision)

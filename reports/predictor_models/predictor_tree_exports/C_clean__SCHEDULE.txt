@@ -1,0 +1,38 @@
+# DecisionTreeClassifier, max_depth=4, min_samples_leaf=20
+# feature_set=C_clean, claim_family=SCHEDULE
+# Trained on folds != 0; evaluated for export only.
+
+|--- action_time_warp <= 1.50
+|   |--- action_obj_delta_pct <= 0.00
+|   |   |--- baseline_generalized_cost <= 12405.65
+|   |   |   |--- action_total_duration <= 22863.00
+|   |   |   |   |--- class: 1
+|   |   |   |--- action_total_duration >  22863.00
+|   |   |   |   |--- class: 0
+|   |   |--- baseline_generalized_cost >  12405.65
+|   |   |   |--- action_total_wait <= 23485.00
+|   |   |   |   |--- class: 1
+|   |   |   |--- action_total_wait >  23485.00
+|   |   |   |   |--- class: 1
+|   |--- action_obj_delta_pct >  0.00
+|   |   |--- baseline_n_tight_customers <= 46.50
+|   |   |   |--- class: 0
+|   |   |--- baseline_n_tight_customers >  46.50
+|   |   |   |--- baseline_generalized_cost <= 13046.20
+|   |   |   |   |--- class: 0
+|   |   |   |--- baseline_generalized_cost >  13046.20
+|   |   |   |   |--- class: 1
+|--- action_time_warp >  1.50
+|   |--- baseline_generalized_cost <= 18109.25
+|   |   |--- affected_total_wait <= 5868.00
+|   |   |   |--- affected_mean_slack <= 1177.38
+|   |   |   |   |--- class: 0
+|   |   |   |--- affected_mean_slack >  1177.38
+|   |   |   |   |--- class: 0
+|   |   |--- affected_total_wait >  5868.00
+|   |   |   |--- class: 0
+|   |--- baseline_generalized_cost >  18109.25
+|   |   |--- action_total_duration <= 99203.50
+|   |   |   |--- class: 1
+|   |   |--- action_total_duration >  99203.50
+|   |   |   |--- class: 0

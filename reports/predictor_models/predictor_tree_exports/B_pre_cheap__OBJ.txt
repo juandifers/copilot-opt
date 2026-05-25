@@ -1,0 +1,35 @@
+# DecisionTreeClassifier, max_depth=4, min_samples_leaf=20
+# feature_set=B_pre_cheap, claim_family=OBJ
+# Trained on folds != 0; evaluated for export only.
+
+|--- instance_class=C <= 0.50
+|   |--- perturbation_magnitude <= 3.50
+|   |   |--- baseline_obj <= 7712.00
+|   |   |   |--- class: 1
+|   |   |--- baseline_obj >  7712.00
+|   |   |   |--- class: 1
+|   |--- perturbation_magnitude >  3.50
+|   |   |--- affected_route_share <= 0.71
+|   |   |   |--- affected_route_share <= 0.18
+|   |   |   |   |--- class: 1
+|   |   |   |--- affected_route_share >  0.18
+|   |   |   |   |--- class: 1
+|   |   |--- affected_route_share >  0.71
+|   |   |   |--- class: 1
+|--- instance_class=C >  0.50
+|   |--- perturbation_family=SERVICE_TIME <= 0.50
+|   |   |--- affected_demand_share <= 0.07
+|   |   |   |--- baseline_obj <= 8262.00
+|   |   |   |   |--- class: 1
+|   |   |   |--- baseline_obj >  8262.00
+|   |   |   |   |--- class: 0
+|   |   |--- affected_demand_share >  0.07
+|   |   |   |--- affected_demand_share <= 0.09
+|   |   |   |   |--- class: 1
+|   |   |   |--- affected_demand_share >  0.09
+|   |   |   |   |--- class: 1
+|   |--- perturbation_family=SERVICE_TIME >  0.50
+|   |   |--- perturbation_magnitude <= 2.50
+|   |   |   |--- class: 1
+|   |   |--- perturbation_magnitude >  2.50
+|   |   |   |--- class: 0

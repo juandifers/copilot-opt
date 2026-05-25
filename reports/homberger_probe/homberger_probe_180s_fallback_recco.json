@@ -1,0 +1,146 @@
+{
+  "unstable_fraction": 0.35,
+  "threshold": 0.3,
+  "cells_to_resolve_at_180s": [
+    {
+      "instance_id": "C2_2_2",
+      "perturbation_id": "ST_4",
+      "reference_ari_min": 0.6492126073791447
+    },
+    {
+      "instance_id": "R1_2_1",
+      "perturbation_id": "TT_4",
+      "reference_ari_min": 0.3619953567631911
+    },
+    {
+      "instance_id": "R1_2_1",
+      "perturbation_id": "TT_5",
+      "reference_ari_min": 0.3589296486532244
+    },
+    {
+      "instance_id": "R1_2_1",
+      "perturbation_id": "TW_5",
+      "reference_ari_min": 0.6694337560025874
+    },
+    {
+      "instance_id": "R1_2_1",
+      "perturbation_id": "TW_6",
+      "reference_ari_min": 0.610404069574478
+    },
+    {
+      "instance_id": "R1_2_1",
+      "perturbation_id": "ST_3",
+      "reference_ari_min": 0.7000289858253504
+    },
+    {
+      "instance_id": "R1_2_1",
+      "perturbation_id": "OC_4",
+      "reference_ari_min": 0.3548427846179381
+    },
+    {
+      "instance_id": "R1_2_1",
+      "perturbation_id": "OC_5",
+      "reference_ari_min": 0.4083669741003388
+    },
+    {
+      "instance_id": "R1_2_2",
+      "perturbation_id": "TT_4",
+      "reference_ari_min": 0.3472409368497895
+    },
+    {
+      "instance_id": "R1_2_2",
+      "perturbation_id": "TT_5",
+      "reference_ari_min": 0.31354801636598784
+    },
+    {
+      "instance_id": "R1_2_2",
+      "perturbation_id": "ST_3",
+      "reference_ari_min": 0.8335056933673848
+    },
+    {
+      "instance_id": "R2_2_1",
+      "perturbation_id": "TT_5",
+      "reference_ari_min": 0.6308863401562469
+    },
+    {
+      "instance_id": "R2_2_1",
+      "perturbation_id": "TW_5",
+      "reference_ari_min": 0.678335428622844
+    },
+    {
+      "instance_id": "R2_2_1",
+      "perturbation_id": "TW_6",
+      "reference_ari_min": 0.5971352940392252
+    },
+    {
+      "instance_id": "R2_2_1",
+      "perturbation_id": "ST_3",
+      "reference_ari_min": 0.6826226734572743
+    },
+    {
+      "instance_id": "R2_2_1",
+      "perturbation_id": "ST_4",
+      "reference_ari_min": 0.5313282437567519
+    },
+    {
+      "instance_id": "R2_2_1",
+      "perturbation_id": "OC_4",
+      "reference_ari_min": 0.5931854751475741
+    },
+    {
+      "instance_id": "R2_2_1",
+      "perturbation_id": "OC_5",
+      "reference_ari_min": 0.8082908128208912
+    },
+    {
+      "instance_id": "RC1_2_1",
+      "perturbation_id": "TT_4",
+      "reference_ari_min": 0.6971487038358419
+    },
+    {
+      "instance_id": "RC1_2_1",
+      "perturbation_id": "TW_6",
+      "reference_ari_min": 0.6100145685275434
+    },
+    {
+      "instance_id": "RC1_2_1",
+      "perturbation_id": "ST_3",
+      "reference_ari_min": 0.5703925273369508
+    },
+    {
+      "instance_id": "RC1_2_2",
+      "perturbation_id": "TW_6",
+      "reference_ari_min": 0.5668720989518422
+    },
+    {
+      "instance_id": "RC1_2_2",
+      "perturbation_id": "ST_3",
+      "reference_ari_min": 0.5429132742324873
+    },
+    {
+      "instance_id": "RC1_2_2",
+      "perturbation_id": "ST_4",
+      "reference_ari_min": 0.4850639635368239
+    },
+    {
+      "instance_id": "RC1_2_2",
+      "perturbation_id": "OC_4",
+      "reference_ari_min": 0.7559792677343504
+    },
+    {
+      "instance_id": "RC1_2_2",
+      "perturbation_id": "OC_5",
+      "reference_ari_min": 0.7097361818452487
+    },
+    {
+      "instance_id": "RC2_2_1",
+      "perturbation_id": "TW_5",
+      "reference_ari_min": 0.5135966540705464
+    },
+    {
+      "instance_id": "RC2_2_1",
+      "perturbation_id": "ST_3",
+      "reference_ari_min": 0.6758316734086506
+    }
+  ]
+}

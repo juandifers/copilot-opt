@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+pandas
+# Required by product/data/instance_geom.py for Stage 4 visual grounding.
+# vrplib parses Solomon/Homberger .vrp files into native arrays.
+vrplib

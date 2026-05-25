@@ -2,3 +2,6 @@
 # Install with: pip install -r requirements.txt
 anthropic>=0.50.0
 jsonschema>=4.0
+# Stage R2-4A — OpenAI prompt-only model baseline
+openai>=1.40.0
+python-dotenv>=1.0.0

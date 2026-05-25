@@ -1,0 +1,614 @@
+[
+  {
+    "cell_id": "C1_2_1__OC_4",
+    "instance": "C1_2_1",
+    "pid": "OC_4",
+    "n_routes": 22,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C1_2_1__OC_5",
+    "instance": "C1_2_1",
+    "pid": "OC_5",
+    "n_routes": 22,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C1_2_1__ST_4",
+    "instance": "C1_2_1",
+    "pid": "ST_4",
+    "n_routes": 27,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C1_2_1__TT_4",
+    "instance": "C1_2_1",
+    "pid": "TT_4",
+    "n_routes": 22,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C1_2_1__TW_5",
+    "instance": "C1_2_1",
+    "pid": "TW_5",
+    "n_routes": 20,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C1_2_1__TW_6",
+    "instance": "C1_2_1",
+    "pid": "TW_6",
+    "n_routes": 20,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C1_2_2__OC_4",
+    "instance": "C1_2_2",
+    "pid": "OC_4",
+    "n_routes": 22,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C1_2_2__OC_5",
+    "instance": "C1_2_2",
+    "pid": "OC_5",
+    "n_routes": 22,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C1_2_2__ST_3",
+    "instance": "C1_2_2",
+    "pid": "ST_3",
+    "n_routes": 21,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C1_2_2__ST_4",
+    "instance": "C1_2_2",
+    "pid": "ST_4",
+    "n_routes": 23,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C1_2_2__TT_4",
+    "instance": "C1_2_2",
+    "pid": "TT_4",
+    "n_routes": 20,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C1_2_2__TW_6",
+    "instance": "C1_2_2",
+    "pid": "TW_6",
+    "n_routes": 20,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C2_2_1__OC_4",
+    "instance": "C2_2_1",
+    "pid": "OC_4",
+    "n_routes": 8,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C2_2_1__OC_5",
+    "instance": "C2_2_1",
+    "pid": "OC_5",
+    "n_routes": 8,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C2_2_1__ST_3",
+    "instance": "C2_2_1",
+    "pid": "ST_3",
+    "n_routes": 8,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C2_2_1__ST_4",
+    "instance": "C2_2_1",
+    "pid": "ST_4",
+    "n_routes": 9,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C2_2_1__TT_4",
+    "instance": "C2_2_1",
+    "pid": "TT_4",
+    "n_routes": 6,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C2_2_1__TT_5",
+    "instance": "C2_2_1",
+    "pid": "TT_5",
+    "n_routes": 6,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C2_2_1__TW_5",
+    "instance": "C2_2_1",
+    "pid": "TW_5",
+    "n_routes": 6,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C2_2_2__OC_4",
+    "instance": "C2_2_2",
+    "pid": "OC_4",
+    "n_routes": 8,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C2_2_2__OC_5",
+    "instance": "C2_2_2",
+    "pid": "OC_5",
+    "n_routes": 8,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C2_2_2__ST_4",
+    "instance": "C2_2_2",
+    "pid": "ST_4",
+    "n_routes": 8,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C2_2_2__TT_4",
+    "instance": "C2_2_2",
+    "pid": "TT_4",
+    "n_routes": 7,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C2_2_2__TT_5",
+    "instance": "C2_2_2",
+    "pid": "TT_5",
+    "n_routes": 7,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "C2_2_2__TW_6",
+    "instance": "C2_2_2",
+    "pid": "TW_6",
+    "n_routes": 7,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R1_2_1__OC_4",
+    "instance": "R1_2_1",
+    "pid": "OC_4",
+    "n_routes": 31,
+    "n_customers": 203,
+    "feasible": false,
+    "n_late_customers": 3
+  },
+  {
+    "cell_id": "R1_2_1__OC_5",
+    "instance": "R1_2_1",
+    "pid": "OC_5",
+    "n_routes": 32,
+    "n_customers": 203,
+    "feasible": false,
+    "n_late_customers": 3
+  },
+  {
+    "cell_id": "R1_2_1__ST_3",
+    "instance": "R1_2_1",
+    "pid": "ST_3",
+    "n_routes": 23,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R1_2_1__ST_4",
+    "instance": "R1_2_1",
+    "pid": "ST_4",
+    "n_routes": 24,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R1_2_1__TT_4",
+    "instance": "R1_2_1",
+    "pid": "TT_4",
+    "n_routes": 33,
+    "n_customers": 200,
+    "feasible": false,
+    "n_late_customers": 3
+  },
+  {
+    "cell_id": "R1_2_1__TT_5",
+    "instance": "R1_2_1",
+    "pid": "TT_5",
+    "n_routes": 35,
+    "n_customers": 200,
+    "feasible": false,
+    "n_late_customers": 6
+  },
+  {
+    "cell_id": "R1_2_1__TW_5",
+    "instance": "R1_2_1",
+    "pid": "TW_5",
+    "n_routes": 23,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R1_2_1__TW_6",
+    "instance": "R1_2_1",
+    "pid": "TW_6",
+    "n_routes": 24,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R1_2_2__OC_4",
+    "instance": "R1_2_2",
+    "pid": "OC_4",
+    "n_routes": 22,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R1_2_2__OC_5",
+    "instance": "R1_2_2",
+    "pid": "OC_5",
+    "n_routes": 22,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R1_2_2__ST_3",
+    "instance": "R1_2_2",
+    "pid": "ST_3",
+    "n_routes": 20,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R1_2_2__ST_4",
+    "instance": "R1_2_2",
+    "pid": "ST_4",
+    "n_routes": 21,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R1_2_2__TT_4",
+    "instance": "R1_2_2",
+    "pid": "TT_4",
+    "n_routes": 29,
+    "n_customers": 200,
+    "feasible": false,
+    "n_late_customers": 1
+  },
+  {
+    "cell_id": "R1_2_2__TT_5",
+    "instance": "R1_2_2",
+    "pid": "TT_5",
+    "n_routes": 28,
+    "n_customers": 200,
+    "feasible": false,
+    "n_late_customers": 4
+  },
+  {
+    "cell_id": "R1_2_2__TW_5",
+    "instance": "R1_2_2",
+    "pid": "TW_5",
+    "n_routes": 20,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R1_2_2__TW_6",
+    "instance": "R1_2_2",
+    "pid": "TW_6",
+    "n_routes": 21,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R2_2_1__OC_4",
+    "instance": "R2_2_1",
+    "pid": "OC_4",
+    "n_routes": 12,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R2_2_1__ST_3",
+    "instance": "R2_2_1",
+    "pid": "ST_3",
+    "n_routes": 12,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R2_2_1__ST_4",
+    "instance": "R2_2_1",
+    "pid": "ST_4",
+    "n_routes": 12,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R2_2_1__TT_4",
+    "instance": "R2_2_1",
+    "pid": "TT_4",
+    "n_routes": 13,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R2_2_1__TT_5",
+    "instance": "R2_2_1",
+    "pid": "TT_5",
+    "n_routes": 13,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R2_2_1__TW_5",
+    "instance": "R2_2_1",
+    "pid": "TW_5",
+    "n_routes": 12,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "R2_2_1__TW_6",
+    "instance": "R2_2_1",
+    "pid": "TW_6",
+    "n_routes": 12,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC1_2_1__OC_4",
+    "instance": "RC1_2_1",
+    "pid": "OC_4",
+    "n_routes": 20,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC1_2_1__OC_5",
+    "instance": "RC1_2_1",
+    "pid": "OC_5",
+    "n_routes": 20,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC1_2_1__ST_3",
+    "instance": "RC1_2_1",
+    "pid": "ST_3",
+    "n_routes": 20,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC1_2_1__TT_4",
+    "instance": "RC1_2_1",
+    "pid": "TT_4",
+    "n_routes": 22,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC1_2_1__TT_5",
+    "instance": "RC1_2_1",
+    "pid": "TT_5",
+    "n_routes": 22,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC1_2_1__TW_6",
+    "instance": "RC1_2_1",
+    "pid": "TW_6",
+    "n_routes": 20,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC1_2_2__OC_4",
+    "instance": "RC1_2_2",
+    "pid": "OC_4",
+    "n_routes": 19,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC1_2_2__OC_5",
+    "instance": "RC1_2_2",
+    "pid": "OC_5",
+    "n_routes": 19,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC1_2_2__ST_3",
+    "instance": "RC1_2_2",
+    "pid": "ST_3",
+    "n_routes": 19,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC1_2_2__ST_4",
+    "instance": "RC1_2_2",
+    "pid": "ST_4",
+    "n_routes": 19,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC1_2_2__TT_4",
+    "instance": "RC1_2_2",
+    "pid": "TT_4",
+    "n_routes": 20,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC1_2_2__TW_5",
+    "instance": "RC1_2_2",
+    "pid": "TW_5",
+    "n_routes": 19,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC1_2_2__TW_6",
+    "instance": "RC1_2_2",
+    "pid": "TW_6",
+    "n_routes": 19,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC2_2_1__OC_4",
+    "instance": "RC2_2_1",
+    "pid": "OC_4",
+    "n_routes": 10,
+    "n_customers": 203,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC2_2_1__ST_3",
+    "instance": "RC2_2_1",
+    "pid": "ST_3",
+    "n_routes": 10,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC2_2_1__ST_4",
+    "instance": "RC2_2_1",
+    "pid": "ST_4",
+    "n_routes": 11,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC2_2_1__TT_4",
+    "instance": "RC2_2_1",
+    "pid": "TT_4",
+    "n_routes": 10,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC2_2_1__TT_5",
+    "instance": "RC2_2_1",
+    "pid": "TT_5",
+    "n_routes": 10,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC2_2_1__TW_5",
+    "instance": "RC2_2_1",
+    "pid": "TW_5",
+    "n_routes": 10,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  },
+  {
+    "cell_id": "RC2_2_1__TW_6",
+    "instance": "RC2_2_1",
+    "pid": "TW_6",
+    "n_routes": 9,
+    "n_customers": 200,
+    "feasible": true,
+    "n_late_customers": 0
+  }
+]

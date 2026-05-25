@@ -57,6 +57,153 @@ _REFUSAL_PHRASES = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Overview / explanation intent detection
+#
+# These prompts ask for a payload-derived overview rather than a specific
+# field value. Detection must run BEFORE the family-based branches so that
+# "what is this perturbation doing?" routes to perturbation_summary even
+# when the question is tagged STRUCT or SCHEDULE.
+#
+# Order within this block matters: route_impact_summary beats
+# perturbation_impact_summary when "routes" / "vehicle" appears, because
+# the prompt is asking specifically about per-route effects.
+# ---------------------------------------------------------------------------
+
+_PERTURBATION_SUMMARY_PHRASES = (
+    "what is this perturbation",
+    "what's this perturbation",
+    "what kind of perturbation",
+    "what type of perturbation",
+    "what stress",
+    "what is being stressed",
+    "what does this perturbation",
+    "describe this perturbation",
+    "describe the perturbation",
+    "what is the perturbation doing",
+    "what's the perturbation doing",
+    "what perturbation",
+)
+
+_SCENARIO_SUMMARY_PHRASES = (
+    "what am i looking at",
+    "what is going on here",
+    "what's going on here",
+    "summarize this scenario",
+    "summarise this scenario",
+    "summarize the scenario",
+    "summarise the scenario",
+    "give me the overview",
+    "give me an overview",
+    "what is this scenario",
+    "what's this scenario",
+    "what kind of scenario",
+    "what does this scenario represent",
+    "scenario overview",
+)
+
+_SOLUTION_SUMMARY_PHRASES = (
+    "summarize the solution",
+    "summarise the solution",
+    "summarize the current solution",
+    "summarise the current solution",
+    "summarize the plan",
+    "summarise the plan",
+    "how does the plan look",
+    "how does this plan look",
+    "is this solution okay at a high level",
+    "what is the status of the plan",
+    "what's the status of the plan",
+    "status of the plan",
+    "status of the solution",
+    "plan status",
+    "solution status",
+)
+
+_IMPACT_PHRASES = (
+    "affecting the solution",
+    "affecting the plan",
+    "affect the solution",
+    "affect the plan",
+    "changed because of this perturbation",
+    "did this make things worse",
+    "did this make the solution worse",
+    "did this make the plan worse",
+    "what changed because",
+    "how did this affect",
+    "how did the perturbation affect",
+    "how is the perturbation affecting",
+    "impact of this perturbation",
+    "impact of the perturbation",
+    "perturbation impact",
+)
+
+_ROUTE_IMPACT_PHRASES = (
+    "affecting routes",
+    "affecting the routes",
+    "affecting the route plan",
+    "affect routes",
+    "affect the routes",
+    "which routes changed",
+    "which routes are most affected",
+    "which routes were most affected",
+    "how did the route plan change",
+    "how did the routes change",
+    "did the routes change",
+    "did any routes change",
+    "route impact",
+    "routes impacted",
+    "routes affected",
+    "how is this perturbation affecting routes",
+)
+
+_WHAT_TO_WATCH_PHRASES = (
+    "what should i pay attention to",
+    "what should we pay attention to",
+    "anything concerning",
+    "anything to worry about",
+    "where should i look",
+    "where do i look",
+    "what should i inspect",
+    "what should we inspect",
+    "what to watch",
+    "what to look for",
+)
+
+
+def _matches_any(lowered: str, phrases: tuple[str, ...]) -> bool:
+    return any(phrase in lowered for phrase in phrases)
+
+
+def _detect_overview_intent(lowered: str) -> Optional[str]:
+    """Detect overview/explanation intents from prompt language.
+
+    Returns the canonical intent string when a match is found, or ``None``
+    otherwise. Order: route-impact > perturbation-impact > perturbation
+    > scenario > solution > what-to-watch.
+    """
+    # Route-impact wins over perturbation-impact when both fire — "how
+    # is this perturbation affecting routes?" is a route-impact question.
+    if _matches_any(lowered, _ROUTE_IMPACT_PHRASES):
+        return "route_impact_summary"
+    # Perturbation-impact (general impact framing, not route-specific).
+    if _matches_any(lowered, _IMPACT_PHRASES):
+        return "perturbation_impact_summary"
+    # Perturbation description (no "impact" framing).
+    if _matches_any(lowered, _PERTURBATION_SUMMARY_PHRASES):
+        return "perturbation_summary"
+    # Scenario-level overview.
+    if _matches_any(lowered, _SCENARIO_SUMMARY_PHRASES):
+        return "scenario_summary"
+    # Solution-level summary.
+    if _matches_any(lowered, _SOLUTION_SUMMARY_PHRASES):
+        return "solution_summary"
+    # What-to-watch / where to look first.
+    if _matches_any(lowered, _WHAT_TO_WATCH_PHRASES):
+        return "what_to_watch"
+    return None
+
+
 def _has_specific_route_number(lowered: str) -> bool:
     return re.search(r"\broute\s+\d+\b", lowered) is not None
 
@@ -103,6 +250,15 @@ def infer_intent(
         any(token in lowered for token in _COMPARATIVE_TOKENS)
         or _COMPARATIVE_REGEX.search(lowered) is not None
     )
+
+    # Overview / explanation intents run first. These are family-agnostic
+    # operator questions that ask for a payload-derived summary rather than
+    # an exact field lookup ("what is this perturbation doing?", "what
+    # should I pay attention to?"). Without this check they would
+    # otherwise collapse to "unknown" in STRUCT/SCHEDULE families.
+    overview = _detect_overview_intent(lowered)
+    if overview is not None:
+        return overview
 
     # full_route_listing: per-route roster questions ("list the customers
     # on each route", "customers per vehicle"). Must beat the new-customer
@@ -172,3 +328,142 @@ def infer_intent(
         return "refusal_or_insufficient_payload"
 
     return "unknown"
+
+
+# ---------------------------------------------------------------------------
+# System D1 — semantic intent adapter wrapper
+# ---------------------------------------------------------------------------
+
+
+def infer_intent_d1(
+    prompt_text: str,
+    family: str,
+    generator_record: Optional[dict] = None,
+) -> str:
+    """Intent classifier used by System D1.
+
+    Runs the existing C0 classifier and then defers to the
+    deterministic semantic intent adapter
+    (`product.copilot.semantic_intent_adapter.decide_d1_intent`) on
+    risk-zone outcomes. The adapter never sees the payload or the
+    generator record — D1's seam is the language→intent map only.
+
+    The C0 `infer_intent` function above is left untouched: D1 layers
+    on top so the canonical C0 path remains available to existing
+    runners and tests.
+    """
+    # Local import keeps `intent.py` import-cycle-free if the adapter
+    # ever needs to import from `intent.py` (which it currently does
+    # not).
+    from product.copilot.semantic_intent_adapter import decide_d1_intent
+
+    c0_intent = infer_intent(
+        prompt_text=prompt_text, family=family, generator_record=generator_record
+    )
+    frame = decide_d1_intent(
+        prompt_text=prompt_text, family=family, c0_intent=c0_intent
+    )
+    return frame.intent
+
+
+def infer_intent_d1_frame(
+    prompt_text: str,
+    family: str,
+    generator_record: Optional[dict] = None,
+):
+    """Same as `infer_intent_d1` but returns the full `QueryFrame`.
+
+    Used by the System D1 evaluation harness to record adapter
+    provenance (override counts, source distribution, comparison
+    type) without altering the downstream contract path. Returns a
+    `product.copilot.query_frame.QueryFrame`.
+    """
+    from product.copilot.semantic_intent_adapter import decide_d1_intent
+
+    c0_intent = infer_intent(
+        prompt_text=prompt_text, family=family, generator_record=generator_record
+    )
+    return decide_d1_intent(
+        prompt_text=prompt_text, family=family, c0_intent=c0_intent
+    )
+
+
+# ---------------------------------------------------------------------------
+# System D-Final — LLM semantic adapter wrapper
+# ---------------------------------------------------------------------------
+
+
+def infer_intent_d_final(
+    prompt_text: str,
+    family: str,
+    client=None,
+    mode: str = "hybrid_guarded",
+    generator_record: Optional[dict] = None,
+) -> str:
+    """Intent classifier used by System D-Final.
+
+    Delegates to the LLM semantic adapter (hybrid_guarded by default)
+    then falls back to D1 if the LLM adapter is unavailable (no
+    client). Returns only the intent string.
+
+    Parameters
+    ----------
+    client:
+        OpenAI client from
+        `product.evaluation.model_clients.openai_client.load_openai_client()`.
+        When ``None`` the function falls through to D1 (deterministic
+        fallback, no LLM call).
+    mode:
+        One of "hybrid_guarded" | "llm_only" | "llm_fallback".
+        Defaults to "hybrid_guarded".
+    """
+    frame, _ = infer_intent_d_final_frame(
+        prompt_text=prompt_text,
+        family=family,
+        client=client,
+        mode=mode,
+        generator_record=generator_record,
+    )
+    return frame.intent
+
+
+def infer_intent_d_final_frame(
+    prompt_text: str,
+    family: str,
+    client=None,
+    mode: str = "hybrid_guarded",
+    generator_record: Optional[dict] = None,
+):
+    """Same as `infer_intent_d_final` but returns the full ``(QueryFrame, LLMAdapterMetadata)`` tuple.
+
+    Used by the D-Final evaluation harness to record adapter provenance
+    (source, confidence, fallback, latency, tokens) without altering the
+    downstream contract path.
+    """
+    from product.copilot.llm_semantic_intent_adapter import infer_intent_d_final_frame as _llm_frame
+
+    if client is None:
+        # No client available — fall back to D1 deterministically
+        d1_frame = infer_intent_d1_frame(
+            prompt_text=prompt_text, family=family, generator_record=generator_record
+        )
+        from product.copilot.llm_query_frame import LLMAdapterMetadata, ValidationOutcome
+        meta = LLMAdapterMetadata(
+            mode=mode,
+            source="d1",
+            accepted=True,
+            fallback_used=True,
+            fallback_reason="no_llm_client",
+            confidence=d1_frame.confidence,
+            model_name=None,
+            validation_outcome=ValidationOutcome.fallback_to_d1.value,
+            d1_intent=d1_frame.intent,
+        )
+        return d1_frame, meta
+
+    return _llm_frame(
+        prompt=prompt_text,
+        family=family,
+        client=client,
+        mode=mode,
+    )

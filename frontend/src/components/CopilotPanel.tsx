@@ -1,0 +1,1012 @@
+// Copilot: conversational front-end over the contract's CopilotAskResponse.
+//
+// The contract returns structured fields (intent, evidence, compute_decision,
+// useful_refusal). This panel renders those as a natural-sounding chat reply —
+// no raw chips, no field paths surfaced. Route and customer mentions inside
+// the prose are inline clickable; clicking one drives the shared selection
+// state across Map, Schedule, and Tables.
+import { useEffect, useRef, useState } from 'react';
+import React from 'react';
+import { ApiError, fetchCopilotAsk } from '../api/client';
+import type {
+  ComputeDecisionBlock,
+  CopilotAskResponse,
+  DisplayAnchor,
+  EvidenceItem,
+  ScenarioResponse,
+} from '../api/types';
+import type { Selection } from '../selection';
+import { CollapseToggle } from './CollapseToggle';
+import type { TablesTab } from './TablesPanel';
+
+interface Props {
+  scenarioId: string | null;
+  scenario: ScenarioResponse | null;
+  selection: Selection;
+  setSelection: (s: Selection) => void;
+  setTablesTab?: (t: TablesTab) => void;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+}
+
+// ---------------------------------------------------------------------------
+// Conversational lead-ins (picked at random per intent for variety)
+// ---------------------------------------------------------------------------
+
+const LEAD_INS: Record<string, string[]> = {
+  route_end_time: ['', 'Sure — ', 'Looking it up… ', ''],
+  customer_arrival: ['', 'Yep — ', 'Got it — '],
+  single_customer_route_membership: ['', 'Yes — ', ''],
+  objective_value: ['', 'The current ', ''],
+  objective_delta: ['', 'It ', ''],
+  route_count: ['', 'There are ', ''],
+  lateness_summary: ['', '', 'Looking at the schedule, '],
+  full_route_listing: ['Here are the routes for this plan. ', ''],
+  before_after_comparison: ['', ''],
+};
+
+function lead(intent: string): string {
+  const opts = LEAD_INS[intent] ?? [''];
+  return opts[Math.floor(Math.random() * opts.length)];
+}
+
+// ---------------------------------------------------------------------------
+// Inline clickable mentions
+// ---------------------------------------------------------------------------
+
+interface SelectFns {
+  setSelection: (s: Selection) => void;
+  setTablesTab?: (t: TablesTab) => void;
+}
+
+function RouteRef({
+  label,
+  idx,
+  sel,
+}: {
+  label: string;
+  idx?: number;
+  sel: SelectFns;
+}) {
+  return (
+    <span
+      className="ref-chip route-ref"
+      onClick={() => {
+        if (typeof idx === 'number') {
+          sel.setSelection({ kind: 'route', idx, label });
+        }
+        sel.setTablesTab?.('routes');
+      }}
+      title="Highlight this route on the map and schedule"
+    >
+      {label}
+    </span>
+  );
+}
+
+function CustomerRef({
+  id,
+  sel,
+}: {
+  id: number;
+  sel: SelectFns;
+}) {
+  return (
+    <span
+      className="ref-chip cust-ref"
+      onClick={() => {
+        sel.setSelection({ kind: 'customer', id });
+        sel.setTablesTab?.('customers');
+      }}
+      title="Highlight this customer"
+    >
+      C{id}
+    </span>
+  );
+}
+
+function fmtTime(v: unknown): string {
+  if (typeof v === 'number') return v.toFixed(1);
+  return String(v);
+}
+
+// ---------------------------------------------------------------------------
+// Prose composer (returns null if no answerable evidence — caller falls
+// through to refusal text)
+// ---------------------------------------------------------------------------
+
+function composeProse(
+  resp: CopilotAskResponse,
+  sel: SelectFns,
+): React.ReactNode | null {
+  if (resp.answerability.status !== 'answerable') return null;
+  const ev = resp.evidence;
+  const findEv = (
+    p: string | ((e: EvidenceItem) => boolean),
+  ): EvidenceItem | undefined =>
+    typeof p === 'string'
+      ? ev.find((e) => e.field_path === p || e.field_path.startsWith(p))
+      : ev.find(p);
+
+  switch (resp.intent) {
+    case 'route_end_time': {
+      const e = ev[0];
+      if (!e) return null;
+      const a = e.display_anchor as DisplayAnchor & {
+        route_label?: string;
+        route_idx?: number;
+      };
+      return (
+        <>
+          {lead(resp.intent)}
+          <RouteRef label={a.route_label ?? 'Route'} idx={a.route_idx} sel={sel} />{' '}
+          finishes at <strong>{fmtTime(e.value)} sm</strong>.
+        </>
+      );
+    }
+    case 'customer_arrival': {
+      const arr = ev[0];
+      if (!arr) return null;
+      const late = findEv((e) => e.field_path.includes('lateness'));
+      const a = arr.display_anchor as DisplayAnchor & {
+        customer_id?: number;
+        route_label?: string;
+        route_idx?: number;
+      };
+      const cid = a.customer_id;
+      return (
+        <>
+          {lead(resp.intent)}
+          {cid != null && <CustomerRef id={cid} sel={sel} />} arrives at{' '}
+          <strong>{fmtTime(arr.value)} sm</strong>
+          {a.route_label && (
+            <>
+              {' '}
+              on{' '}
+              <RouteRef label={a.route_label} idx={a.route_idx} sel={sel} />
+            </>
+          )}
+          {late && (
+            <>
+              ,{' '}
+              <span style={{ color: 'var(--late)' }}>
+                +{fmtTime(late.value)} sm late
+              </span>
+            </>
+          )}
+          .
+        </>
+      );
+    }
+    case 'single_customer_route_membership': {
+      const e = ev[0];
+      if (!e) return null;
+      const m = e.field_path.match(/customer_id=(\d+)/);
+      let cid: number | null = null;
+      if (m) cid = Number(m[1]);
+      else if (typeof e.value === 'number') cid = e.value;
+      const a = e.display_anchor as DisplayAnchor & {
+        route_label?: string;
+        route_idx?: number;
+      };
+      return (
+        <>
+          {lead(resp.intent)}
+          {cid != null && <CustomerRef id={cid} sel={sel} />} is on{' '}
+          {a.route_label ? (
+            <RouteRef label={a.route_label} idx={a.route_idx} sel={sel} />
+          ) : (
+            'a route'
+          )}
+          .
+        </>
+      );
+    }
+    case 'objective_value': {
+      const v = findEv('action_objective');
+      const u = findEv('units.objective');
+      if (!v) return null;
+      return (
+        <>
+          {lead(resp.intent)}objective is <strong>{fmtTime(v.value)}</strong>
+          {u && (
+            <span style={{ color: 'var(--text-faint)' }}>
+              {' '}
+              {String(u.value)}
+            </span>
+          )}
+          .
+        </>
+      );
+    }
+    case 'objective_delta': {
+      const abs = findEv((e) => e.field_path.includes('delta_absolute'));
+      const pct = findEv((e) => e.field_path.includes('delta_percent'));
+      if (!abs) return null;
+      const av = typeof abs.value === 'number' ? abs.value : 0;
+      const pv = typeof pct?.value === 'number' ? pct.value : null;
+      const direction = av >= 0 ? 'went up' : 'went down';
+      return (
+        <>
+          {lead(resp.intent)}objective {direction} by{' '}
+          <strong>
+            {av >= 0 ? '+' : ''}
+            {fmtTime(av)}
+          </strong>
+          {pv != null && (
+            <span style={{ color: 'var(--text-faint)' }}>
+              {' '}
+              ({pv >= 0 ? '+' : ''}
+              {fmtTime(pv)}%)
+            </span>
+          )}
+          .
+        </>
+      );
+    }
+    case 'route_count': {
+      const e = ev[0];
+      if (!e) return null;
+      return (
+        <>
+          {lead(resp.intent)}
+          <strong>{String(e.value)}</strong> routes in this plan.
+        </>
+      );
+    }
+    case 'lateness_summary': {
+      const n = findEv('n_late_customers');
+      const sample = ev
+        .filter((e) => e.field_path.includes('lateness_minutes'))
+        .slice(0, 3);
+      if (!n) return null;
+      const count = Number(n.value) || 0;
+      if (count === 0) {
+        return (
+          <>
+            {lead(resp.intent)}
+            no customers are late in this plan — everyone arrives within their
+            time window.
+          </>
+        );
+      }
+      return (
+        <>
+          {lead(resp.intent)}
+          <strong>{String(n.value)}</strong>{' '}
+          {count === 1 ? 'customer is' : 'customers are'} late
+          {sample.length > 0 && (
+            <>
+              . The worst{sample.length > 1 ? ' offenders are' : ' is'}{' '}
+              {sample.map((e, i) => {
+                const a = e.display_anchor as DisplayAnchor & {
+                  customer_id?: number;
+                };
+                return (
+                  <React.Fragment key={i}>
+                    {i > 0 && (i === sample.length - 1 ? ' and ' : ', ')}
+                    {a.customer_id != null ? (
+                      <CustomerRef id={a.customer_id} sel={sel} />
+                    ) : (
+                      'C?'
+                    )}{' '}
+                    <span style={{ color: 'var(--late)' }}>
+                      (+{fmtTime(e.value)} sm)
+                    </span>
+                  </React.Fragment>
+                );
+              })}
+            </>
+          )}
+          .
+        </>
+      );
+    }
+    case 'full_route_listing': {
+      const routeEvs = ev.slice(0, 6);
+      return (
+        <>
+          {lead(resp.intent)}This plan has <strong>{ev.length}</strong> routes
+          {routeEvs.length > 0 && (
+            <>
+              :{' '}
+              {routeEvs.map((e, i) => {
+                const a = e.display_anchor as DisplayAnchor & {
+                  route_label?: string;
+                  route_idx?: number;
+                };
+                return (
+                  <React.Fragment key={i}>
+                    {i > 0 && (i === routeEvs.length - 1 ? ' and ' : ', ')}
+                    {a.route_label ? (
+                      <RouteRef
+                        label={a.route_label}
+                        idx={a.route_idx}
+                        sel={sel}
+                      />
+                    ) : (
+                      'a route'
+                    )}
+                  </React.Fragment>
+                );
+              })}
+              {ev.length > routeEvs.length && (
+                <span style={{ color: 'var(--text-faint)' }}>
+                  {' '}
+                  (+{ev.length - routeEvs.length} more)
+                </span>
+              )}
+            </>
+          )}
+          . Click any route to highlight it on the map.
+        </>
+      );
+    }
+    case 'before_after_comparison': {
+      const cc = findEv((e) => e.field_path.includes('customer_changes'));
+      const rc = findEv((e) => e.field_path.includes('route_changes'));
+      const cv = Number(cc?.value ?? 0);
+      const rv = Number(rc?.value ?? 0);
+      if (cv === 0 && rv === 0) {
+        return (
+          <>
+            {lead(resp.intent)}nothing significant changed between the baseline
+            and the perturbed plan.
+          </>
+        );
+      }
+      return (
+        <>
+          {lead(resp.intent)}
+          <strong>{cv}</strong> customer{cv === 1 ? '' : 's'} and{' '}
+          <strong>{rv}</strong> route{rv === 1 ? '' : 's'} changed. The Diff tab
+          has the details.
+        </>
+      );
+    }
+    default:
+      return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Friendlier refusal prose (varied by intent + scenario shape signal)
+// ---------------------------------------------------------------------------
+
+function refusalProse(resp: CopilotAskResponse): React.ReactNode {
+  const missing = resp.answerability.missing_fields;
+  const missingHas = (s: string) => missing.some((m) => m.includes(s));
+
+  switch (resp.intent) {
+    case 'objective_delta':
+    case 'before_after_comparison':
+      return (
+        <>
+          I don't have a baseline to compare against for this scenario, so I
+          can't say what changed. Try a scenario that ships with both the
+          baseline and the perturbed plan.
+        </>
+      );
+    case 'route_end_time':
+      if (missingHas('customer_schedule') || missingHas('route_end_times')) {
+        return (
+          <>
+            This scenario doesn't carry schedule timing — try one that does
+            (the impact strip will show "late_customers / N" when it's
+            available).
+          </>
+        );
+      }
+      return <>I can't find route end-times in this payload.</>;
+    case 'customer_arrival':
+      return (
+        <>
+          No arrival times in this scenario. Pick a schedule-shape scenario
+          (the ones with a populated Gantt) and ask again.
+        </>
+      );
+    case 'single_customer_route_membership':
+      return (
+        <>
+          This scenario doesn't expose per-customer route membership. STRUCT-
+          and SCHEDULE-shape payloads do.
+        </>
+      );
+    case 'feasibility_status':
+      return <>Feasibility isn't asserted in this payload.</>;
+    case 'new_customer_assignment':
+      return (
+        <>
+          The perturbation doesn't name a new customer to attribute, so I can't
+          tell you where it landed.
+        </>
+      );
+    case 'unknown':
+      return (
+        <>
+          I didn't quite catch that one. Try a phrasing like the suggestions
+          below — I'm good at route end-times, arrivals, lateness, and
+          objective values.
+        </>
+      );
+    default:
+      return <>That one needs fields the current payload doesn't carry.</>;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Compact compute-decision footnote (replaces the big banner)
+// ---------------------------------------------------------------------------
+
+const COMPUTE_FOOTNOTE: Record<string, string> = {
+  needs_recompute: 'A recompute would resolve this.',
+  partial_from_payload: 'I can describe what I see, but the cause is out of reach.',
+  needs_comparison_payload: 'A baseline payload would unlock the answer.',
+  clarification_needed: 'A more specific question would help.',
+  unsupported: 'This question is outside the contract scope.',
+};
+
+function ComputeNote({ cd }: { cd: ComputeDecisionBlock }) {
+  if (cd.mode === 'answer_from_payload') return null;
+  const note = COMPUTE_FOOTNOTE[cd.mode] ?? null;
+  if (!note) return null;
+  return (
+    <div className="compute-note">
+      <span className="cn-dot" /> {note}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Typing dots while pending
+// ---------------------------------------------------------------------------
+
+function TypingDots() {
+  return (
+    <div className="msg bot">
+      <div className="role">Copilot</div>
+      <div className="bubble typing">
+        <span className="dot" />
+        <span className="dot" />
+        <span className="dot" />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Local answer computation — fallback when the LLM-D1 adapter returns
+// intent='unknown' for clear questions whose answer is sitting in the loaded
+// scenario data. Keeps the bot from feeling helpless on common phrasings.
+// ---------------------------------------------------------------------------
+
+function pickLead(opts: string[]): string {
+  return opts[Math.floor(Math.random() * opts.length)];
+}
+
+function localAnswer(
+  prompt: string,
+  scenario: ScenarioResponse | null,
+  sel: SelectFns,
+): { node: React.ReactNode; select?: Selection } | null {
+  if (!scenario) return null;
+  const p = prompt.toLowerCase().trim();
+  const sol = scenario.solution;
+
+  // Route count
+  if (
+    /\bhow many routes?\b|\broute count\b|\bnumber of routes?\b|\bhow many vehicles?\b|\bvehicle count\b/.test(p)
+  ) {
+    const n =
+      sol?.n_routes ??
+      sol?.routes?.length ??
+      (sol?.customer_schedule
+        ? new Set(sol.customer_schedule.map((r) => r.route_idx)).size
+        : null);
+    if (n != null) {
+      return {
+        node: (
+          <>
+            {pickLead(['', 'There are ', 'This plan uses '])}
+            <strong>{n}</strong> routes in this plan.
+          </>
+        ),
+      };
+    }
+  }
+
+  // Objective value
+  if (
+    /\bwhat(?:'s| is)\s+(?:the\s+)?objective\b|\bobjective\s+value\b|\btotal\s+(?:cost|distance|objective)\b/.test(p)
+  ) {
+    const obj = sol?.objective;
+    if (obj != null) {
+      return {
+        node: (
+          <>
+            {pickLead(['The current ', 'Current ', ''])}
+            objective is <strong>{obj.toFixed(1)}</strong>.
+          </>
+        ),
+      };
+    }
+    // Objective isn't in the payload — give a useful answer anyway.
+    const routesN =
+      sol?.routes?.length ??
+      (sol?.customer_schedule
+        ? new Set(sol.customer_schedule.map((r) => r.route_idx)).size
+        : null);
+    const late = sol?.customer_schedule?.filter((r) => r.is_late).length ?? 0;
+    return {
+      node: (
+        <>
+          This scenario doesn't carry a single objective value, but I can tell
+          you{routesN != null && (
+            <>
+              {' '}
+              it uses <strong>{routesN}</strong> routes
+            </>
+          )}
+          {late > 0 ? (
+            <>
+              {' '}
+              with <strong>{late}</strong> late customers.
+            </>
+          ) : (
+            <> with all customers arriving on time.</>
+          )}{' '}
+          The Impact strip shows the headline metrics.
+        </>
+      ),
+    };
+  }
+
+  // Single-customer route membership
+  const cm = p.match(/(?:which|what)\s+route\s+(?:is\s+)?c(?:ustomer)?\s*(\d+)\s+on/) ||
+    p.match(/c(?:ustomer)?\s*(\d+).*\bon\s+which\s+route/);
+  if (cm) {
+    const cid = Number(cm[1]);
+    if (sol?.customer_schedule) {
+      const row = sol.customer_schedule.find((r) => r.customer_id === cid);
+      if (row) {
+        return {
+          node: (
+            <>
+              {pickLead(['', 'Yes — '])}
+              <CustomerRef id={cid} sel={sel} /> is on{' '}
+              <RouteRef label={row.route_label} idx={row.route_idx} sel={sel} />.
+            </>
+          ),
+          select: { kind: 'customer', id: cid },
+        };
+      }
+    }
+    if (sol?.routes) {
+      for (const r of sol.routes) {
+        if (r.customer_ids.includes(cid)) {
+          return {
+            node: (
+              <>
+                <CustomerRef id={cid} sel={sel} /> is on{' '}
+                <RouteRef label={r.route_label} idx={r.route_idx} sel={sel} />.
+              </>
+            ),
+            select: { kind: 'customer', id: cid },
+          };
+        }
+      }
+    }
+    return {
+      node: (
+        <>
+          I don't see <CustomerRef id={cid} sel={sel} /> in this plan's routes
+          — double-check the customer id?
+        </>
+      ),
+    };
+  }
+
+  // Lateness summary
+  if (/\bwhich customers? are late\b|\bwho('s| is) late\b|\bany late\b|\blate customers?\b/.test(p)) {
+    if (sol?.customer_schedule) {
+      const late = sol.customer_schedule.filter((r) => r.is_late);
+      if (late.length === 0) {
+        return {
+          node: (
+            <>
+              No customers are late in this plan — everyone arrives within
+              their time window.
+            </>
+          ),
+        };
+      }
+      const worst = [...late]
+        .sort((a, b) => b.lateness_minutes - a.lateness_minutes)
+        .slice(0, 3);
+      return {
+        node: (
+          <>
+            <strong>{late.length}</strong>{' '}
+            {late.length === 1 ? 'customer is' : 'customers are'} late. The
+            worst {worst.length > 1 ? 'offenders are' : 'is'}{' '}
+            {worst.map((r, i) => (
+              <React.Fragment key={i}>
+                {i > 0 && (i === worst.length - 1 ? ' and ' : ', ')}
+                <CustomerRef id={r.customer_id} sel={sel} />{' '}
+                <span style={{ color: 'var(--late)' }}>
+                  (+{r.lateness_minutes.toFixed(1)} sm)
+                </span>
+              </React.Fragment>
+            ))}
+            .
+          </>
+        ),
+      };
+    }
+  }
+
+  // Route end time
+  const re = p.match(
+    /(?:what time|when)\s+(?:does\s+)?route\s+(\d+)\s+(?:finish|end|complete)/,
+  );
+  if (re) {
+    const oneBased = Number(re[1]);
+    const idx0 = oneBased - 1;
+    if (sol?.customer_schedule) {
+      const rows = sol.customer_schedule.filter((r) => r.route_idx === idx0);
+      if (rows.length > 0) {
+        let maxEnd = -Infinity;
+        let label = `Route ${oneBased}`;
+        for (const r of rows) {
+          if (r.service_end != null && r.service_end > maxEnd)
+            maxEnd = r.service_end;
+          label = r.route_label;
+        }
+        if (Number.isFinite(maxEnd)) {
+          return {
+            node: (
+              <>
+                <RouteRef label={label} idx={idx0} sel={sel} /> finishes at{' '}
+                <strong>{maxEnd.toFixed(1)} sm</strong>.
+              </>
+            ),
+            select: { kind: 'route', idx: idx0, label },
+          };
+        }
+      }
+    }
+    if (sol?.routes) {
+      const r = sol.routes.find((rr) => rr.route_idx === idx0);
+      if (r && r.end_time != null) {
+        return {
+          node: (
+            <>
+              <RouteRef label={r.route_label} idx={idx0} sel={sel} /> finishes
+              at <strong>{r.end_time.toFixed(1)} sm</strong>.
+            </>
+          ),
+          select: { kind: 'route', idx: idx0, label: r.route_label },
+        };
+      }
+    }
+  }
+
+  // Customer arrival
+  const ca = p.match(/when\s+does\s+c(?:ustomer)?\s*(\d+)\s+arrive/);
+  if (ca) {
+    const cid = Number(ca[1]);
+    if (sol?.customer_schedule) {
+      const row = sol.customer_schedule.find((r) => r.customer_id === cid);
+      if (row && row.arrival != null) {
+        return {
+          node: (
+            <>
+              <CustomerRef id={cid} sel={sel} /> arrives at{' '}
+              <strong>{row.arrival.toFixed(1)} sm</strong>
+              {row.route_label && (
+                <>
+                  {' '}
+                  on{' '}
+                  <RouteRef
+                    label={row.route_label}
+                    idx={row.route_idx}
+                    sel={sel}
+                  />
+                </>
+              )}
+              {row.is_late && (
+                <>
+                  ,{' '}
+                  <span style={{ color: 'var(--late)' }}>
+                    +{row.lateness_minutes.toFixed(1)} sm late
+                  </span>
+                </>
+              )}
+              .
+            </>
+          ),
+          select: { kind: 'customer', id: cid },
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Message model
+// ---------------------------------------------------------------------------
+
+type Message =
+  | { role: 'user'; text: string }
+  | { role: 'bot-info'; text: React.ReactNode }
+  | { role: 'bot-response'; resp: CopilotAskResponse }
+  | { role: 'bot-local'; node: React.ReactNode }
+  | { role: 'bot-error'; code: string; message: string };
+
+interface MsgProps {
+  m: Message;
+  sel: SelectFns;
+}
+
+function CopilotMessage({ m, sel }: MsgProps) {
+  if (m.role === 'user') {
+    return (
+      <div className="msg user">
+        <div className="role">You</div>
+        <div className="bubble">{m.text}</div>
+      </div>
+    );
+  }
+  if (m.role === 'bot-info') {
+    return (
+      <div className="msg bot">
+        <div className="role">Copilot</div>
+        <div className="bubble info">
+          <div className="answer">{m.text}</div>
+        </div>
+      </div>
+    );
+  }
+  if (m.role === 'bot-error') {
+    return (
+      <div className="msg bot">
+        <div className="role">Copilot</div>
+        <div className="bubble" style={{ borderLeftColor: 'var(--late)' }}>
+          <div className="answer" style={{ color: 'var(--late)' }}>
+            Something went wrong — {m.message}.
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (m.role === 'bot-local') {
+    return (
+      <div className="msg bot">
+        <div className="role">Copilot</div>
+        <div className="bubble">
+          <div className="answer">{m.node}</div>
+        </div>
+      </div>
+    );
+  }
+
+  const resp = m.resp;
+  const composed = composeProse(resp, sel);
+  const showProse = composed != null;
+
+  return (
+    <div className="msg bot">
+      <div className="role">Copilot</div>
+      <div className="bubble">
+        <div className="answer">
+          {showProse ? composed : refusalProse(resp)}
+        </div>
+        {resp.compute_decision && <ComputeNote cd={resp.compute_decision} />}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Suggestion chips
+// ---------------------------------------------------------------------------
+
+const SUGGESTIONS = [
+  'What time does route 3 finish?',
+  'When does customer 12 arrive?',
+  'Which customers are late?',
+  'How many routes does this plan use?',
+  'What is the objective?',
+  'Why did the objective increase?',
+  'Which route is customer 42 on?',
+  'What changed between baseline and now?',
+];
+
+// ---------------------------------------------------------------------------
+// Auto-dispatch first evidence anchor to selection on response arrival
+// ---------------------------------------------------------------------------
+
+function autoSelect(
+  resp: CopilotAskResponse,
+  sel: SelectFns,
+) {
+  const first = resp.evidence[0];
+  if (!first) return;
+  const a = first.display_anchor as DisplayAnchor & {
+    customer_id?: number;
+    route_idx?: number;
+    route_label?: string;
+  };
+  if (!a) return;
+  if (a.type === 'customer' || a.type === 'customer_arrival') {
+    if (a.customer_id != null) {
+      sel.setSelection({ kind: 'customer', id: a.customer_id });
+    }
+    if (a.type === 'customer_arrival') sel.setTablesTab?.('customers');
+  } else if (a.type === 'route' || a.type === 'route_end') {
+    if (a.route_idx != null) {
+      sel.setSelection({
+        kind: 'route',
+        idx: a.route_idx,
+        label: a.route_label,
+      });
+      sel.setTablesTab?.('routes');
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Panel
+// ---------------------------------------------------------------------------
+
+export function CopilotPanel({
+  scenarioId,
+  scenario,
+  selection: _selection,
+  setSelection,
+  setTablesTab,
+  collapsed,
+  onToggleCollapse,
+}: Props) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [draft, setDraft] = useState('');
+  const [pending, setPending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const sel: SelectFns = { setSelection, setTablesTab };
+
+  useEffect(() => {
+    setMessages(
+      scenarioId
+        ? [
+            {
+              role: 'bot-info',
+              text: (
+                <>
+                  Loaded <strong>{scenarioId}</strong>. Ask me anything about
+                  this plan — routes, arrivals, lateness, the objective. I'll
+                  highlight things on the map and tables as I go.
+                </>
+              ),
+            },
+          ]
+        : [
+            {
+              role: 'bot-info',
+              text: <>Pick a scenario in the top bar and we'll get going.</>,
+            },
+          ],
+    );
+  }, [scenarioId]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, pending]);
+
+  async function ask(text: string) {
+    const t = text.trim();
+    if (!t || !scenarioId || pending) return;
+    setMessages((m) => [...m, { role: 'user', text: t }]);
+    setDraft('');
+    setPending(true);
+    try {
+      const resp = await fetchCopilotAsk({
+        scenario_id: scenarioId,
+        prompt: t,
+      });
+      // Frontend fallback: when the LLM-D1 adapter couldn't classify but the
+      // answer is sitting in the loaded scenario payload, compute it locally.
+      const contractDidNotAnswer =
+        resp.intent === 'unknown' ||
+        (resp.behavior_class === 'useful_refusal' && resp.evidence.length === 0);
+      if (contractDidNotAnswer) {
+        const local = localAnswer(t, scenario, sel);
+        if (local) {
+          setMessages((m) => [...m, { role: 'bot-local', node: local.node }]);
+          if (local.select) setSelection(local.select);
+          return;
+        }
+      }
+      setMessages((m) => [...m, { role: 'bot-response', resp }]);
+      autoSelect(resp, sel);
+    } catch (err: unknown) {
+      const code = err instanceof ApiError ? err.body.code : 'network_error';
+      const message =
+        err instanceof ApiError
+          ? err.body.message
+          : err instanceof Error
+            ? err.message
+            : 'Unknown error';
+      setMessages((m) => [...m, { role: 'bot-error', code, message }]);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (collapsed) {
+    return (
+      <div className="copilot-col collapsed">
+        <div className="copilot-head">
+          <CollapseToggle
+            collapsed={collapsed}
+            onToggle={onToggleCollapse}
+            orientation="col"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="copilot-col">
+      <div className="copilot-head">
+        <span className="pulse" />
+        <span className="label">Copilot</span>
+        <span style={{ flex: 1 }} />
+        <CollapseToggle
+          collapsed={collapsed}
+          onToggle={onToggleCollapse}
+          orientation="col"
+        />
+      </div>
+      <div className="copilot-scroll scroll-thin" ref={scrollRef}>
+        {messages.map((m, i) => (
+          <CopilotMessage key={i} m={m} sel={sel} />
+        ))}
+        {pending && <TypingDots />}
+      </div>
+      <div className="copilot-suggest">
+        {SUGGESTIONS.map((s) => (
+          <span className="sg" key={s} onClick={() => ask(s)}>
+            {s}
+          </span>
+        ))}
+      </div>
+      <form
+        className="copilot-input"
+        onSubmit={(e) => {
+          e.preventDefault();
+          ask(draft);
+        }}
+      >
+        <input
+          autoComplete="off"
+          data-copilot-input
+          placeholder={
+            scenarioId ? 'Ask the copilot… ( / )' : 'Pick a scenario to start'
+          }
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          disabled={!scenarioId || pending}
+        />
+        <button type="submit" disabled={!scenarioId || pending || !draft.trim()}>
+          Ask
+        </button>
+      </form>
+    </div>
+  );
+}

@@ -1,0 +1,11 @@
+# DecisionTreeClassifier, max_depth=4, min_samples_leaf=20
+# feature_set=C_clean, claim_family=PLAN_VALIDITY
+# Trained on folds != 0; evaluated for export only.
+
+|--- action_time_warp <= 0.50
+|   |--- action_total_duration <= 98694.00
+|   |   |--- class: 1
+|   |--- action_total_duration >  98694.00
+|   |   |--- class: 1
+|--- action_time_warp >  0.50
+|   |--- class: 0

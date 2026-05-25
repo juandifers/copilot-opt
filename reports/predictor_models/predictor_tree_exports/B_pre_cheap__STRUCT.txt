@@ -1,0 +1,41 @@
+# DecisionTreeClassifier, max_depth=4, min_samples_leaf=20
+# feature_set=B_pre_cheap, claim_family=STRUCT
+# Trained on folds != 0; evaluated for export only.
+
+|--- instance_class=C <= 0.50
+|   |--- perturbation_magnitude <= 2.50
+|   |   |--- baseline_obj <= 10443.50
+|   |   |   |--- baseline_mean_route_slack <= 2457.86
+|   |   |   |   |--- class: 0
+|   |   |   |--- baseline_mean_route_slack >  2457.86
+|   |   |   |   |--- class: 1
+|   |   |--- baseline_obj >  10443.50
+|   |   |   |--- baseline_obj <= 11849.50
+|   |   |   |   |--- class: 1
+|   |   |   |--- baseline_obj >  11849.50
+|   |   |   |   |--- class: 1
+|   |--- perturbation_magnitude >  2.50
+|   |   |--- baseline_total_wait <= 1277.50
+|   |   |   |--- affected_mean_slack <= 1097.95
+|   |   |   |   |--- class: 0
+|   |   |   |--- affected_mean_slack >  1097.95
+|   |   |   |   |--- class: 0
+|   |   |--- baseline_total_wait >  1277.50
+|   |   |   |--- baseline_generalized_cost <= 12585.55
+|   |   |   |   |--- class: 0
+|   |   |   |--- baseline_generalized_cost >  12585.55
+|   |   |   |   |--- class: 0
+|--- instance_class=C >  0.50
+|   |--- perturbation_family=SERVICE_TIME <= 0.50
+|   |   |--- n_affected_customers <= 5.50
+|   |   |   |--- n_affected_customers <= 2.00
+|   |   |   |   |--- class: 1
+|   |   |   |--- n_affected_customers >  2.00
+|   |   |   |   |--- class: 1
+|   |   |--- n_affected_customers >  5.50
+|   |   |   |--- class: 1
+|   |--- perturbation_family=SERVICE_TIME >  0.50
+|   |   |--- perturbation_magnitude <= 2.50
+|   |   |   |--- class: 1
+|   |   |--- perturbation_magnitude >  2.50
+|   |   |   |--- class: 0

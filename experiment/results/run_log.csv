@@ -1,5 +1,0 @@
-run_id,start_time,end_time,git_commit,backend,generator_model_served,judge_model_served,n_prompts_attempted,n_prompts_completed,n_halts,n_retries,total_token_usage,total_wall_clock_seconds
-smoke-v1,2026-05-19T00:43:10Z,2026-05-19T00:45:57Z,7ed55d7d110a222077140388307a3538a717ad75,claude-code,claude-haiku-4-5-20251001,claude-sonnet-4-6,4,4,0,0,7075,166.39
-calibration-pilot-v1,2026-05-19T12:32:54Z,2026-05-19T12:33:19Z,ae47223b12c6d13b0a960690e9e9afa2f80aebdd,claude-code,,,1,0,1,0,668,24.91
-calibration-pilot-v1,2026-05-19T14:20:14Z,2026-05-19T14:34:23Z,ae47223b12c6d13b0a960690e9e9afa2f80aebdd,claude-code,claude-haiku-4-5,claude-sonnet-4-6,20,20,0,0,44223,848.96
-full-run-v1,2026-05-19T16:11:20Z,2026-05-19T16:48:54Z,d385304a8875e07de2ef80b1946f0983bc2c08ca,claude-code,claude-haiku-4-5,claude-sonnet-4-6,48,48,0,0,118468,2254.08

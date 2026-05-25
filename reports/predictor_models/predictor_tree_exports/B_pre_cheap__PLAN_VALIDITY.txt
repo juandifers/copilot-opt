@@ -1,0 +1,44 @@
+# DecisionTreeClassifier, max_depth=4, min_samples_leaf=20
+# feature_set=B_pre_cheap, claim_family=PLAN_VALIDITY
+# Trained on folds != 0; evaluated for export only.
+
+|--- affected_service_time_share <= 0.22
+|   |--- baseline_total_wait <= 1277.50
+|   |   |--- affected_min_slack <= 50.00
+|   |   |   |--- affected_total_wait <= 23.00
+|   |   |   |   |--- class: 0
+|   |   |   |--- affected_total_wait >  23.00
+|   |   |   |   |--- class: 1
+|   |   |--- affected_min_slack >  50.00
+|   |   |   |--- class: 1
+|   |--- baseline_total_wait >  1277.50
+|   |   |--- perturbation_family=TIME_WINDOW <= 0.50
+|   |   |   |--- baseline_mean_route_slack <= 540.10
+|   |   |   |   |--- class: 1
+|   |   |   |--- baseline_mean_route_slack >  540.10
+|   |   |   |   |--- class: 1
+|   |   |--- perturbation_family=TIME_WINDOW >  0.50
+|   |   |   |--- class: 1
+|--- affected_service_time_share >  0.22
+|   |--- baseline_total_wait <= 3963.50
+|   |   |--- affected_min_slack <= 190.50
+|   |   |   |--- affected_total_wait <= 560.00
+|   |   |   |   |--- class: 0
+|   |   |   |--- affected_total_wait >  560.00
+|   |   |   |   |--- class: 0
+|   |   |--- affected_min_slack >  190.50
+|   |   |   |--- affected_route_share <= 0.75
+|   |   |   |   |--- class: 1
+|   |   |   |--- affected_route_share >  0.75
+|   |   |   |   |--- class: 0
+|   |--- baseline_total_wait >  3963.50
+|   |   |--- perturbation_magnitude <= 3.50
+|   |   |   |--- baseline_generalized_cost <= 12585.55
+|   |   |   |   |--- class: 0
+|   |   |   |--- baseline_generalized_cost >  12585.55
+|   |   |   |   |--- class: 1
+|   |   |--- perturbation_magnitude >  3.50
+|   |   |   |--- baseline_generalized_cost <= 12585.55
+|   |   |   |   |--- class: 0
+|   |   |   |--- baseline_generalized_cost >  12585.55
+|   |   |   |   |--- class: 0

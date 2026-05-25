@@ -74,3 +74,6 @@ data/
 *.bak
 *.tmp
 prompt.md
+
+# ── D5: local-dev recompute runtime artifacts (not benchmark truth) ──────────
+product/api/runtime/

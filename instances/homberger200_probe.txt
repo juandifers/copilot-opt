@@ -1,0 +1,20 @@
+# Homberger-200 methodology probe roster.
+#
+# 10 instances stratified 4 C / 3 R / 3 RC, drawn from the GH200 first
+# cluster of each Solomon class. The probe is a methodology evaluation,
+# not training data — Stage A predictors stay locked and Homberger
+# cells are scored zero-shot. See the run spec in conversation history.
+#
+# Source: https://github.com/PyVRP/Instances (VRPTW/GH200/*.vrp)
+# Format: one instance ID per line; blank lines and # comments are ignored.
+
+C1_2_1
+C1_2_2
+C2_2_1
+C2_2_2
+R1_2_1
+R1_2_2
+R2_2_1
+RC1_2_1
+RC1_2_2
+RC2_2_1

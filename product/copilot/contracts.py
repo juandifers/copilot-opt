@@ -41,6 +41,15 @@ Intent = Literal[
     "full_route_listing",
     "refusal_or_insufficient_payload",
     "unknown",
+    # Grounded overview intents — payload-derived explanations rather than
+    # exact field lookups. Answerability depends on what the payload supports
+    # (descriptive vs. impact/change).
+    "perturbation_summary",
+    "scenario_summary",
+    "solution_summary",
+    "perturbation_impact_summary",
+    "route_impact_summary",
+    "what_to_watch",
 ]
 
 AnswerabilityStatus = Literal["answerable", "partially_answerable", "not_answerable"]

@@ -449,3 +449,8 @@ def validate_all_cases(cases: list[Run2Case]) -> ValidationReport:
 def default_cases_path() -> Path:
     """Return the canonical path to the calibration CSV in this repo."""
     return Path(__file__).resolve().parent / "run2_calibration_cases.csv"
+
+
+def benchmark_cases_path() -> Path:
+    """Return the canonical path to the full 60-case benchmark CSV."""
+    return Path(__file__).resolve().parent / "run2_benchmark_cases.csv"
