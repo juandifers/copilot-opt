@@ -1,0 +1,1 @@
+{"instances": ["C2_2_2", "R1_2_1", "R1_2_2", "R2_2_1", "RC1_2_1", "RC1_2_2", "RC2_2_1"], "perturbation_ids": ["TT_4", "TT_5", "TW_5", "TW_6", "ST_3", "ST_4", "OC_4", "OC_5"], "seeds": [1, 2, 3], "time_limit": 180.0, "n_jobs": 6, "expanded_actions": true, "pyvrp10s_time_limit": 10.0}

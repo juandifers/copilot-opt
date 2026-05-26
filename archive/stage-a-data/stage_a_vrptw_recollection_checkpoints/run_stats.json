@@ -1,0 +1,17 @@
+{
+  "n_unstable_cells_input": 256,
+  "n_solves_total": 768,
+  "n_cache_hits": 72,
+  "n_fresh_solves": 696,
+  "n_failures": 0,
+  "wall_clock_seconds": 13923.713984207978,
+  "reference_time_limit_seconds": 120.0,
+  "baseline_time_limit_seconds": 60.0,
+  "seeds": [
+    1,
+    2,
+    3
+  ],
+  "n_jobs": 6,
+  "failures": []
+}

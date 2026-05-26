@@ -7,8 +7,8 @@ D2 (D1 semantic intent adapter + D2 answerability and warning extension) vs D1 v
 | axis | n | C0 int | D1 int | D2 int | C0 ans | D1 ans | D2 ans | C0 beh | D1 beh | D2 beh |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | axis1_lookalike | 24 | 0.875 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| axis2_ood_premises | 24 | 0.750 | 1.000 | 1.000 | 0.750 | 0.917 | 1.000 | 0.750 | 0.917 | 1.000 |
-| axis3_semantic | 24 | 0.625 | 1.000 | 1.000 | 0.625 | 1.000 | 1.000 | 0.625 | 0.875 | 1.000 |
+| axis2_ood_premises | 24 | 0.708 | 0.958 | 0.958 | 0.750 | 0.917 | 1.000 | 0.750 | 0.917 | 1.000 |
+| axis3_semantic | 24 | 0.417 | 0.792 | 0.792 | 0.417 | 0.792 | 0.792 | 0.417 | 0.667 | 0.792 |
 | axis4_payload | 24 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
 
 ## 2. D2 target-5 cohort
@@ -31,12 +31,14 @@ D2 (D1 semantic intent adapter + D2 answerability and warning extension) vs D1 v
 
 ## 4. Must-not-regress 70-cohort
 
-- must_not_regress_70_preserved_count: **70** / 70  
-  - C0-side cases D2 evaluates directly: 64 / 64
+- must_not_regress_70_preserved_count: **68** / 70  
+  - C0-side cases D2 evaluates directly: 62 / 64
   - Axis 4 model-A cases preserved by construction: 6
 
-_No regression in the 70-case cohort._
+**Regressions in must-not-regress cohort:**
 
+- A2H-10 (axis2_ood_premises): D2 intent=unknown, warnings=
+- S1H-01 (axis3_semantic): D2 intent=unknown, warnings=
 ## 5. Axis 4 C0-like preservation
 
 - axis4_fully_perfect_under_d2: **24** / 24

@@ -7,8 +7,8 @@ D1 (semantic intent adapter + locked downstream contract) vs C0 (locked classifi
 | axis | n | C0 intent | D1 intent | C0 ans | D1 ans | C0 beh | D1 beh |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | axis1_lookalike | 24 | 0.875 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| axis2_ood_premises | 24 | 0.750 | 1.000 | 0.750 | 0.917 | 0.750 | 0.917 |
-| axis3_semantic | 24 | 0.625 | 1.000 | 0.625 | 1.000 | 0.625 | 0.875 |
+| axis2_ood_premises | 24 | 0.708 | 0.958 | 0.750 | 0.917 | 0.750 | 0.917 |
+| axis3_semantic | 24 | 0.417 | 0.792 | 0.417 | 0.792 | 0.417 | 0.667 |
 | axis4_payload | 24 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
 
 ## 2. Target-18 cohort
@@ -25,7 +25,7 @@ D1 (semantic intent adapter + locked downstream contract) vs C0 (locked classifi
 | A2H-05 | axis2_ood_premises | before_after_comparison | single_customer_route_membership | before_after_comparison | ✓ |
 | A2H-06 | axis2_ood_premises | before_after_comparison | unknown | before_after_comparison | ✓ |
 | A2D-08 | axis2_ood_premises | objective_delta | objective_value | objective_delta | ✓ |
-| A2H-08 | axis2_ood_premises | objective_delta | objective_value | objective_delta | ✓ |
+| A2H-08 | axis2_ood_premises | objective_delta | unknown | objective_delta | ✓ |
 | A2H-09 | axis2_ood_premises | before_after_comparison | unknown | before_after_comparison | ✓ |
 | S1D-07 | axis3_semantic | full_route_listing | unknown | full_route_listing | ✓ |
 | S1D-08 | axis3_semantic | route_end_time | unknown | route_end_time | ✓ |
@@ -39,13 +39,18 @@ D1 (semantic intent adapter + locked downstream contract) vs C0 (locked classifi
 
 ## 3. Must-not-regress 70-cohort
 
-- must_not_regress_70_preserved_count: **70** / 70  
-- must_not_regress_70_preserved_rate: **1.000**
+- must_not_regress_70_preserved_count: **68** / 70  
+- must_not_regress_70_preserved_rate: **0.971**
 
-  - C0-side cases D1 evaluates directly: 64 / 64
+  - C0-side cases D1 evaluates directly: 62 / 64
   - Axis 4 model-A cases preserved by construction (D1 does not run model A): 6
 
-_No regression in the 70-case cohort._
+**Regressions detected:**
+
+| case_id | axis | C0 intent | D1 intent | C0 perf | D1 perf |
+|---|---|---|---|:-:|:-:|
+| A2H-10 | axis2_ood_premises | unknown | unknown | ✗ | ✗ |
+| S1H-01 | axis3_semantic | unknown | unknown | ✗ | ✗ |
 
 ## 4. Adapter call accounting
 

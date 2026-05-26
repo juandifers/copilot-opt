@@ -141,7 +141,299 @@ def _render_objective_value(evidence_items: list[dict], warnings: list[str]) -> 
     return text
 
 
-def _render_objective_delta(evidence_items: list[dict], warnings: list[str]) -> str:
+# ---------------------------------------------------------------------------
+# A-008 — Evaluation verdict renderer
+#
+# Surfaces threshold-grounded verdicts (acceptable / needs_review /
+# unacceptable) with explicit threshold + observed value side-by-side.
+# Per the Phase B plan: judgments are claims backed by explicit
+# threshold comparison; the prose never asserts a verdict without
+# showing the comparison.
+# ---------------------------------------------------------------------------
+
+
+_EVAL_THRESHOLD_LABELS = {
+    "late_customers_count": "Lateness",
+    "objective_relative_delta": "Objective change",
+    "feasibility": "Feasibility",
+    "routes_modified_pct": "Routes modified",
+}
+
+
+def _format_observed(metric: str, value, threshold) -> str:
+    """Format observed/threshold values per metric for prose."""
+    if metric == "late_customers_count":
+        return f"{value} customers late (threshold: {threshold})"
+    if metric == "objective_relative_delta":
+        # value is a signed percent; threshold is fraction
+        return f"{abs(float(value)):.1f}% (threshold: {float(threshold) * 100:.1f}%)"
+    if metric == "feasibility":
+        state = "infeasible" if value is True else "feasible"
+        return f"{state} (gate: strict)"
+    if metric == "routes_modified_pct":
+        return f"{float(value) * 100:.1f}% (threshold: {float(threshold) * 100:.1f}%)"
+    return f"{value} (threshold: {threshold})"
+
+
+def _render_evaluation_judgment(
+    evidence_items: list[dict],
+    prompt_text: str = "",
+    perturbation_type: Optional[str] = None,
+) -> str:
+    """A-008 evaluation prose. Renders verdict + per-check comparison.
+
+    Re-runs the evaluation against the payload-derived evidence items so
+    the verdict computation and the prose stay coherent (the evidence
+    layer emits one item per check; the renderer reconstructs the
+    aggregation from the same data).
+    """
+    from product.copilot.evaluation import (
+        Verdict, EvaluationResult, ThresholdCheck,
+    )
+    # Reconstruct checks from evidence_items (each ev item carries
+    # supports string with the threshold metric and pass/fail). We need
+    # the original check objects for the verdict, but we can re-derive
+    # from the evidence items' structure since the supports format is
+    # stable.
+    #
+    # Easier path: extract the (family, metric, value, passes, bias)
+    # tuples from the evidence_items' supports/field_path. The verbalizer
+    # is bound to the same module that emitted the evidence so this is
+    # safe.
+    import re as _re_local
+    parsed_checks = []
+    for ev in evidence_items:
+        path = ev.get("field_path") if isinstance(ev, dict) else getattr(ev, "field_path", "")
+        if not isinstance(path, str) or not path.startswith("evaluation."):
+            continue
+        supports = ev.get("supports") if isinstance(ev, dict) else getattr(ev, "supports", "") or ""
+        value = ev.get("value") if isinstance(ev, dict) else getattr(ev, "value", None)
+        # Parse "metric check (threshold); observed=...; passes=True|False [bias_band]"
+        m = _re_local.match(
+            r"(?P<metric>\S+)\s+check\s+\((?P<threshold>[^)]+)\);\s+"
+            r"observed=(?P<observed>[^;]+);\s+passes=(?P<passes>True|False)"
+            r"(?P<bias>\s+\[bias_band\])?",
+            supports or "",
+        )
+        if not m:
+            continue
+        metric = m.group("metric")
+        threshold_raw = m.group("threshold")
+        passes = m.group("passes") == "True"
+        bias_applied = bool(m.group("bias"))
+        # threshold may be numeric or "strict"
+        threshold_val: Any = threshold_raw
+        try:
+            threshold_val = float(threshold_raw)
+            if threshold_val.is_integer() and ".0" not in threshold_raw:
+                threshold_val = int(threshold_val)
+        except ValueError:
+            pass
+        # family from field_path: evaluation.<family>.<metric>
+        parts = path.split(".")
+        family = parts[1].upper() if len(parts) >= 3 else "UNKNOWN"
+        parsed_checks.append({
+            "family": family,
+            "metric": metric,
+            "threshold": threshold_val,
+            "observed": value,
+            "passes": passes,
+            "bias_applied": bias_applied,
+        })
+
+    if not parsed_checks:
+        return (
+            "Plan acceptability cannot be evaluated — none of the "
+            "configured thresholds have the data they need in this payload."
+        )
+
+    # Aggregation (PV exception)
+    pv_failed = any(
+        c["family"] == "PLAN_VALIDITY" and c["metric"] == "feasibility" and not c["passes"]
+        for c in parsed_checks
+    )
+    n_failed = sum(1 for c in parsed_checks if not c["passes"])
+    bias_applied = any(c["bias_applied"] for c in parsed_checks)
+
+    if pv_failed:
+        verdict = "unacceptable"
+        pv_exception = True
+    elif n_failed == 0:
+        verdict = "acceptable"
+        pv_exception = False
+    elif n_failed == 1:
+        verdict = "needs_review"
+        pv_exception = False
+    else:
+        verdict = "unacceptable"
+        pv_exception = False
+
+    # Build comparison lines
+    lines = []
+    for c in parsed_checks:
+        label = _EVAL_THRESHOLD_LABELS.get(c["metric"], c["metric"])
+        comparison = _format_observed(c["metric"], c["observed"], c["threshold"])
+        verdict_word = (
+            "within limits" if c["passes"]
+            else ("exceeds threshold" if not c["bias_applied"] else "within bias band, flagged for review")
+        )
+        lines.append(f"- {label}: {comparison} — {verdict_word}")
+
+    # Pick template per verdict
+    if pv_exception:
+        header = (
+            "This plan is unacceptable: feasibility was lost in the "
+            "perturbation. At least one customer can no longer be served "
+            "by any vehicle within constraints."
+        )
+    elif verdict == "acceptable":
+        if bias_applied:
+            header = (
+                "This plan is at the edge of acceptability: one or more "
+                "dimensions are within their bias band; recommending "
+                "review."
+            )
+        else:
+            header = "By the configured thresholds, this plan is acceptable."
+    elif verdict == "needs_review":
+        failing = next((c for c in parsed_checks if not c["passes"]), None)
+        if failing:
+            label = _EVAL_THRESHOLD_LABELS.get(failing["metric"], failing["metric"])
+            header = (
+                f"This plan needs review: the {label.lower()} dimension "
+                f"exceeds its threshold."
+            )
+        else:
+            header = "This plan needs review."
+    else:  # unacceptable (non-PV)
+        header = (
+            "This plan is outside acceptable bounds: multiple thresholds "
+            "are exceeded."
+        )
+
+    rationale_line = (
+        "\n\nThreshold rationale: docs/threshold_rationale.md"
+    )
+    return header + "\n" + "\n".join(lines) + rationale_line
+
+
+# ---------------------------------------------------------------------------
+# B4 (A-007) — templated causal narration
+#
+# Appends a one-sentence causal explanation to delta/comparison prose.
+# Per the Phase B plan: cause = perturbation framing; effect = diff field
+# inference. Solver-internal "why" remains out of scope — the narration
+# never claims causal relationships the contract can't ground.
+# ---------------------------------------------------------------------------
+
+
+def _b4_perturbation_family(perturbation_id_or_type: Optional[str]) -> Optional[str]:
+    """Normalize a perturbation_id like 'TT_4' to a family token (TRAVEL_TIME)."""
+    if not perturbation_id_or_type:
+        return None
+    s = str(perturbation_id_or_type).upper()
+    if s.startswith("TT") or s == "TRAVEL_TIME":
+        return "TRAVEL_TIME"
+    if s.startswith("ST") or s == "SERVICE_TIME":
+        return "SERVICE_TIME"
+    if s.startswith("TW") or s == "TIME_WINDOW":
+        return "TIME_WINDOW"
+    if s.startswith("OC") or s == "ORDER_CHANGE":
+        return "ORDER_CHANGE"
+    return None
+
+
+def _b4_causal_phrase(
+    perturbation_type: Optional[str],
+    evidence_items: list[dict],
+) -> Optional[str]:
+    """Return the cause-side phrase per perturbation family.
+
+    Returns ``None`` when the perturbation family is unknown so the
+    caller skips the causal sentence rather than rendering a hollow
+    "this change occurred because the perturbation".
+    """
+    fam = _b4_perturbation_family(perturbation_type)
+    if fam == "TRAVEL_TIME":
+        return "travel times changed across the network"
+    if fam == "SERVICE_TIME":
+        return "service times at customers were extended"
+    if fam == "TIME_WINDOW":
+        return "customer time windows shifted"
+    if fam == "ORDER_CHANGE":
+        new_ids = _ev_value(evidence_items, "diff.routes.modified") or []
+        added_cust = _ev_value(evidence_items, "new_customer_ids")
+        if isinstance(added_cust, list) and added_cust:
+            ids = ", ".join(str(i) for i in sorted(added_cust))
+            return f"the perturbation added customer(s) {ids}"
+        return "the customer set changed"
+    return None
+
+
+def _b4_objective_effect(
+    delta_abs: Optional[float],
+    delta_pct: Optional[float],
+    units: Optional[str],
+) -> Optional[str]:
+    if delta_abs is None or delta_abs == 0.0:
+        return None
+    direction = "increased" if delta_abs > 0 else "decreased"
+    unit_str = f" {units}" if units else ""
+    if delta_pct is not None:
+        return f"{direction} the total {direction.replace('ed','')[:-1]}d cost by {abs(delta_abs):.2f}{unit_str} ({abs(delta_pct):.1f}%)"
+    return f"{direction} the total cost by {abs(delta_abs):.2f}{unit_str}"
+
+
+def _b4_diff_effect(evidence_items: list[dict]) -> Optional[str]:
+    """Infer the effect-side phrase from diff fields.
+
+    Priority order matches the Phase B plan: schedule (new late) >
+    structure (modified routes) > feasibility > objective > none. The
+    most operationally-loaded effect wins.
+    """
+    new_late = _ev_value(evidence_items, "diff.schedule.new_late_customer_ids")
+    if isinstance(new_late, list) and new_late:
+        n = len(new_late)
+        return f"caused {n} customer{'s' if n != 1 else ''} to become late"
+
+    no_longer_late = _ev_value(evidence_items, "diff.schedule.no_longer_late_customer_ids")
+    if isinstance(no_longer_late, list) and no_longer_late:
+        n = len(no_longer_late)
+        return (
+            f"actually relieved schedule pressure — {n} customer"
+            f"{'s' if n != 1 else ''} recovered from being late"
+        )
+
+    modified_evs = [
+        ev for ev in evidence_items
+        if isinstance(ev.get("field_path"), str)
+        and ev["field_path"].startswith("diff.routes.modified[")
+    ]
+    if modified_evs:
+        n_modified = len({
+            ev["field_path"].rsplit("].", 1)[0] for ev in modified_evs
+        })
+        return f"forced {n_modified} route{'s' if n_modified != 1 else ''} to be re-shaped"
+
+    pv_became_inf = _ev_value(evidence_items, "diff.feasibility.became_infeasible")
+    if pv_became_inf is True:
+        return "broke feasibility"
+
+    obj_abs = _ev_value(evidence_items, "diff.objective.delta_absolute")
+    obj_pct = _ev_value(evidence_items, "diff.objective.delta_percent")
+    if obj_abs is not None and obj_abs != 0.0:
+        direction = "raised" if obj_abs > 0 else "lowered"
+        pct = f" ({abs(obj_pct):.1f}%)" if obj_pct is not None else ""
+        return f"{direction} the objective by {abs(obj_abs):.2f}{pct}"
+
+    return None
+
+
+def _render_objective_delta(
+    evidence_items: list[dict],
+    warnings: list[str],
+    perturbation_type: Optional[str] = None,
+) -> str:
     baseline = _ev_value(evidence_items, "baseline_objective")
     current = _ev_value(evidence_items, "action_objective")
     delta_abs = _ev_value(evidence_items, "objective_delta_absolute")
@@ -168,6 +460,155 @@ def _render_objective_delta(evidence_items: list[dict], warnings: list[str]) -> 
             f"The cost changed from {baseline} to {current}{unit_str} "
             f"({sign}{delta_abs:.2f} absolute, {sign}{delta_pct:.1f}%)."
         )
+    # B4: append causal narration when perturbation_type is known and the
+    # delta is nontrivial.
+    if perturbation_type and delta_abs is not None and delta_abs != 0.0:
+        effect = _b4_objective_effect(delta_abs, delta_pct, units)
+        causal = _b4_causal_phrase(perturbation_type, evidence_items)
+        if causal and effect:
+            text += f" This change occurred because {causal}, which {effect}."
+    return text
+
+
+def _render_before_after_comparison(
+    evidence_items: list[dict],
+    warnings: list[str],
+    perturbation_type: Optional[str] = None,
+) -> str:
+    """Render the Tier-2 diff payload as a natural-language narrative.
+
+    B5 (A-007): per-family narrative templates replace the previous
+    bullet-style fact list. The current evidence emission is unchanged;
+    only the prose layer is upgraded. Family templates chain when
+    multiple sub-blocks are non-trivial (e.g. SCHEDULE perturbation that
+    also modified routes — schedule narrative + struct narrative).
+
+    B4 (A-007): when ``perturbation_type`` is provided and the diff
+    surfaces a non-trivial effect, an additional causal sentence is
+    appended via ``_b4_causal_phrase`` + the inferred effect string.
+    """
+    obj_abs = _ev_value(evidence_items, "diff.objective.delta_absolute")
+    obj_pct = _ev_value(evidence_items, "diff.objective.delta_percent")
+    obj_baseline = _ev_value(evidence_items, "diff.objective.baseline")
+    obj_action = _ev_value(evidence_items, "diff.objective.action")
+    obj_units = _ev_value(evidence_items, "units.objective")
+    pv_became_inf = _ev_value(evidence_items, "diff.feasibility.became_infeasible")
+    pv_became_feas = _ev_value(evidence_items, "diff.feasibility.became_feasible")
+    routes_added = _ev_value(evidence_items, "diff.routes.added")
+    routes_removed = _ev_value(evidence_items, "diff.routes.removed")
+    new_late = _ev_value(evidence_items, "diff.schedule.new_late_customer_ids")
+    no_longer_late = _ev_value(evidence_items, "diff.schedule.no_longer_late_customer_ids")
+
+    parts: list[str] = []
+
+    # OBJ narrative
+    if obj_abs is not None:
+        unit_str = f" {obj_units}" if obj_units else ""
+        if obj_abs == 0:
+            if obj_action is not None:
+                parts.append(
+                    f"Compared to the baseline, the objective is unchanged at "
+                    f"{obj_action}{unit_str}."
+                )
+            else:
+                parts.append("Objective unchanged from baseline.")
+        else:
+            direction = "rose" if obj_abs > 0 else "fell"
+            sign = "+" if obj_abs > 0 else ""
+            pct_str = f"{sign}{obj_pct:.1f}%" if obj_pct is not None else f"{sign}{obj_abs:.2f}"
+            if obj_baseline is not None and obj_action is not None:
+                parts.append(
+                    f"Compared to the baseline, the objective {direction} by "
+                    f"{abs(obj_abs):.2f}{unit_str} ({pct_str}) — from "
+                    f"{obj_baseline}{unit_str} to {obj_action}{unit_str}."
+                )
+            else:
+                parts.append(
+                    f"The objective {direction} by {abs(obj_abs):.2f}{unit_str} "
+                    f"({pct_str}) from baseline."
+                )
+
+    # PV narrative
+    if pv_became_inf is True:
+        parts.append(
+            "The plan became infeasible after the perturbation; one or more "
+            "constraints are no longer satisfied."
+        )
+    elif pv_became_feas is True:
+        parts.append(
+            "The plan recovered feasibility — previously-violated constraints "
+            "are now satisfied."
+        )
+    elif pv_became_inf is False or pv_became_feas is False:
+        # Both flags explicitly false: feasibility preserved through the
+        # perturbation. Avoid this assertion when the flags weren't present
+        # in the diff at all.
+        if pv_became_inf is False and pv_became_feas is False:
+            parts.append(
+                "Feasibility was maintained through the perturbation; all "
+                "constraints remain satisfied."
+            )
+
+    # STRUCT narrative
+    n_added = len(routes_added) if isinstance(routes_added, list) else 0
+    n_removed = len(routes_removed) if isinstance(routes_removed, list) else 0
+    modified_evs = [
+        ev for ev in evidence_items
+        if isinstance(ev.get("field_path"), str)
+        and ev["field_path"].startswith("diff.routes.modified[")
+    ]
+    n_modified = len({
+        ev["field_path"].rsplit("].", 1)[0]
+        for ev in modified_evs
+    }) if modified_evs else 0
+    if n_added or n_removed or n_modified:
+        bits = []
+        if n_added:
+            bits.append(f"{n_added} route{'s' if n_added != 1 else ''} added")
+        if n_removed:
+            bits.append(f"{n_removed} route{'s' if n_removed != 1 else ''} removed")
+        if n_modified:
+            bits.append(f"{n_modified} route{'s' if n_modified != 1 else ''} modified")
+        total_changes = n_added + n_removed + n_modified
+        parts.append(
+            f"The plan structure changed in {total_changes} place{'s' if total_changes != 1 else ''}: "
+            f"{', '.join(bits)}."
+        )
+
+    # SCHEDULE narrative
+    if isinstance(new_late, list) or isinstance(no_longer_late, list):
+        if not new_late and not no_longer_late:
+            parts.append(
+                "Schedule structure unchanged — lateness pattern is identical "
+                "to baseline."
+            )
+        else:
+            if new_late:
+                ids_str = ", ".join(str(i) for i in sorted(new_late))
+                parts.append(
+                    f"{len(new_late)} customer{'s' if len(new_late) != 1 else ''} "
+                    f"became late after the perturbation: {ids_str}."
+                )
+            if no_longer_late:
+                ids_str = ", ".join(str(i) for i in sorted(no_longer_late))
+                parts.append(
+                    f"{len(no_longer_late)} customer{'s' if len(no_longer_late) != 1 else ''} "
+                    f"recovered from being late: {ids_str}."
+                )
+
+    if not parts:
+        return "Before/after comparison is not available — payload lacks diff data."
+
+    text = " ".join(parts)
+
+    # B4: causal narration. Append when perturbation_type is known and the
+    # diff shows a material effect.
+    if perturbation_type:
+        causal = _b4_causal_phrase(perturbation_type, evidence_items)
+        effect = _b4_diff_effect(evidence_items)
+        if causal and effect:
+            text += f" This change occurred because {causal}, which {effect}."
+
     return text
 
 
@@ -709,19 +1150,274 @@ def _render_useful_refusal(
 # ---------------------------------------------------------------------------
 
 
+def _render_ranking_aspect(
+    evidence_items: list[dict],
+    prompt_text: str,
+    family: str = "",
+) -> Optional[str]:
+    """Verbalizer for the B1 ranking aspect (A-006).
+
+    Returns rendered prose when the prompt is a ranking query and the
+    evidence layer surfaced ranking evidence; returns ``None`` to let
+    the caller fall back to the generic aspectual template.
+
+    Templates per spec §B1:
+    - multi-entry (>=2 items): "The top K target by dimension are: 1. ... 2. ..."
+    - single-entry: "The X with the worst Y is Z (value units)."
+    - zero-entry (e.g. lateness=0): "All customers are on time, so there's
+      no lateness ranking to surface."
+    - ambiguity_note (when dimension was inferred from a bare superlative):
+      appended as a clarifying line.
+    """
+    from product.data import evidence as evidence_mod
+
+    # When evidence is already present, the dispatcher already confirmed
+    # family compatibility — derive the spec with a permissive default
+    # family so we always render the ranking template instead of the
+    # family-incompat refusal.
+    family_for_spec = family or ("SCHEDULE" if evidence_items else "")
+    spec = evidence_mod.derive_ranking_spec(prompt_text, family_for_spec)
+    if spec is None:
+        return None
+
+    # Family-incompatible: refuse with a family-aware explanation.
+    # Only used when evidence_items is empty (caller fell through to the
+    # refusal path with no ranking data).
+    if not spec.family_compatible and not evidence_items:
+        if spec.family in ("OBJ", ""):
+            return (
+                f"This is an OBJ-family payload and doesn't carry per-"
+                f"{spec.target} detail. The objective value is reported "
+                f"directly; for per-{spec.target} ranking by {spec.dimension}, "
+                f"the SCHEDULE version of this scenario would be needed."
+            )
+        if spec.family in ("PV", "PLAN_VALIDITY"):
+            return (
+                f"This PV-family payload reports feasibility status only; "
+                f"per-{spec.target} ranking by {spec.dimension} is not "
+                f"supported. Try the SCHEDULE version of this scenario for "
+                f"timing-dimension ranking."
+            )
+        if spec.family == "STRUCT" and spec.dimension != "load":
+            return (
+                f"This STRUCT-family payload supports ranking by load "
+                f"(customer count per route), but not by {spec.dimension}. "
+                f"For lateness / end-time / window ranking, the SCHEDULE "
+                f"version of this scenario would be needed."
+            )
+        return None  # let caller fall back
+
+    # Look for the n_late_customers zero-result evidence shape
+    is_zero_lateness = (
+        spec.dimension == "lateness"
+        and len(evidence_items) == 1
+        and (
+            (evidence_items[0].get("field_path") if isinstance(evidence_items[0], dict)
+             else getattr(evidence_items[0], "field_path", ""))
+            == "n_late_customers"
+        )
+    )
+
+    if is_zero_lateness:
+        if spec.target == "customer":
+            body = (
+                "All customers are on time — there's no lateness ranking "
+                "to surface."
+            )
+        else:
+            body = (
+                "No routes have any lateness — every customer is on time, "
+                "so the lateness ranking is empty."
+            )
+    elif not evidence_items:
+        body = f"Nothing to rank by {spec.dimension} — the field is empty."
+    else:
+        # Multi-entry or single-entry rendering
+        n = len(evidence_items)
+        dim_units = {
+            "lateness": "min late",
+            "end_time": "end time",
+            "load": "customers",
+            "slack": "end time",
+            "window_margin": "min margin",
+            "window_width": "min wide",
+        }.get(spec.dimension, "")
+        if n == 1:
+            ev = evidence_items[0]
+            path = ev.get("field_path") if isinstance(ev, dict) else getattr(ev, "field_path", "")
+            val = ev.get("value") if isinstance(ev, dict) else getattr(ev, "value", None)
+            display = _ranking_display_for_path(path, ev)
+            body = (
+                f"The {spec.target} with the {spec.dimension} ranking is "
+                f"{display} ({val} {dim_units})."
+            )
+        else:
+            lines = [
+                f"The top {min(n, spec.top_k)} {spec.target}s by {spec.dimension}:"
+            ]
+            for i, ev in enumerate(evidence_items[: spec.top_k], start=1):
+                path = ev.get("field_path") if isinstance(ev, dict) else getattr(ev, "field_path", "")
+                val = ev.get("value") if isinstance(ev, dict) else getattr(ev, "value", None)
+                display = _ranking_display_for_path(path, ev)
+                lines.append(f"  {i}. {display} — {val} {dim_units}")
+            body = "\n".join(lines)
+
+    # R3 (A-008.5): when the prompt was ambiguous and we built structured
+    # alternative-dimension suggestions, append the explicit alternatives
+    # block. Falls back to the legacy ambiguity_note line when alternatives
+    # is empty (UNAMBIGUOUS prompt, flag-disabled, or family with only one
+    # compatible dimension) — preserving byte-identical output for cases
+    # that were UNAMBIGUOUS prior to A-008.5.
+    alternatives = getattr(spec, "alternatives", None) or []
+    if alternatives:
+        # Operator-style sentence: "I interpreted '<sup>' as '<dim>'. Other
+        # rankings available — re-ask with one of these:" + 2–4 bullets.
+        # The ambiguity_note string already carries the bare-superlative
+        # phrasing, but we want the structured block to be self-contained.
+        sup_phrase: Optional[str] = None
+        if spec.ambiguity_note:
+            import re as _re_an
+            m_sup = _re_an.search(r"interpreted '([^']+)'", spec.ambiguity_note)
+            if m_sup:
+                sup_phrase = m_sup.group(1)
+        header_intro = (
+            f"I interpreted '{sup_phrase}' as '{spec.dimension}'."
+            if sup_phrase
+            else f"I defaulted to ranking by '{spec.dimension}'."
+        )
+        lines = [
+            "",
+            f"{header_intro} Other rankings are available — re-ask with one of these phrasings:",
+        ]
+        for alt in alternatives:
+            lines.append(f"  - {alt.example_phrasing} ({alt.label})")
+        body = body + "\n" + "\n".join(lines)
+    elif spec.ambiguity_note:
+        body = f"{body}\n\n({spec.ambiguity_note}.)"
+    return body
+
+
+def _ranking_display_for_path(path: str, ev) -> str:
+    """Best-effort short label for a ranking evidence row."""
+    import re as _re
+    if not path:
+        return "(unknown)"
+    if isinstance(ev, dict):
+        dl = ev.get("display_label")
+    else:
+        dl = getattr(ev, "display_label", None)
+    if dl:
+        return dl
+    m_r = _re.search(r"route_idx=(\d+)", path)
+    if m_r:
+        return f"Route {int(m_r.group(1)) + 1}"
+    m_c = _re.search(r"customer_id=(\d+)", path)
+    if m_c:
+        return f"Customer {m_c.group(1)}"
+    return path
+
+
+def _render_aspectual_fallback(
+    evidence_items: list[dict],
+    prompt_text: str,
+) -> str:
+    """Generic verbalizer for the within-family aspectual fallback path.
+
+    Activated when intent classification returned "unknown" but the
+    evidence layer dispatched on a SCHEDULE-aspect (lateness or timing).
+    Renders a brief framing line + one bullet per evidence item.
+    Template is generic for v1; per-aspect customization is deferred.
+    """
+    import re as _re
+
+    # Extract entity hints from the evidence items' field paths.
+    cust_ids: list[int] = []
+    route_idxs: list[int] = []
+    for ev in evidence_items:
+        path = ev.get("field_path") if isinstance(ev, dict) else getattr(ev, "field_path", "")
+        if not path:
+            continue
+        m_c = _re.search(r"customer_id=(\d+)", path)
+        if m_c:
+            v = int(m_c.group(1))
+            if v not in cust_ids:
+                cust_ids.append(v)
+        m_r = _re.search(r"route_idx=(\d+)", path)
+        if m_r:
+            v = int(m_r.group(1))
+            if v not in route_idxs:
+                route_idxs.append(v)
+
+    # Build a one-line entity description.
+    parts: list[str] = []
+    if cust_ids:
+        if len(cust_ids) == 1:
+            parts.append(f"customer {cust_ids[0]}")
+        elif len(cust_ids) <= 3:
+            parts.append("customers " + ", ".join(str(c) for c in cust_ids))
+        else:
+            parts.append(f"{len(cust_ids)} customers")
+    if route_idxs:
+        if len(route_idxs) == 1:
+            parts.append(f"Route {route_idxs[0] + 1}")
+        else:
+            parts.append(f"{len(route_idxs)} routes")
+    entity_desc = " and ".join(parts) if parts else "this scenario"
+
+    # Derive aspect from the prompt (cheap regex; same patterns as the
+    # dispatcher — keep verbalization self-contained for now).
+    aspect_desc = "the schedule"
+    p = (prompt_text or "").lower()
+    if _re.search(
+        r"\b(late|lateness|delay(?:ed)?|behind(?:\s+schedule)?|miss(?:ed|ing)?)\b",
+        p,
+    ):
+        aspect_desc = "lateness"
+    elif _re.search(
+        r"\b(arriv|when\s+does|what\s+time|schedule|completion|finish|done)\b",
+        p,
+    ):
+        aspect_desc = "timing"
+
+    header = (
+        f"I couldn't classify your question precisely, but here's what I can "
+        f"tell you about {entity_desc} regarding {aspect_desc}:"
+    )
+
+    bullets: list[str] = []
+    for ev in evidence_items:
+        if isinstance(ev, dict):
+            path = ev.get("field_path", "")
+            val = ev.get("value")
+        else:
+            path = getattr(ev, "field_path", "")
+            val = getattr(ev, "value", None)
+        bullets.append(f"  • {path}: {val}")
+    body = "\n".join(bullets)
+
+    footer = "Was this what you were asking about? If not, try rephrasing."
+    return f"{header}\n{body}\n{footer}"
+
+
 def _render_partial_answer(
     intent: str,
     evidence_items: list[dict],
     warnings: list[str],
     missing_fields: list[str],
+    prompt_text: str = "",
+    perturbation_type: Optional[str] = None,
 ) -> str:
     partial = ""
     if intent == "objective_delta":
-        partial = _render_objective_delta(evidence_items, warnings)
+        partial = _render_objective_delta(evidence_items, warnings, perturbation_type)
     elif intent == "objective_value":
         partial = _render_objective_value(evidence_items, warnings)
     elif intent == "feasibility_status":
         partial = _render_feasibility_status(evidence_items, warnings)
+    elif intent == "before_after_comparison":
+        partial = _render_before_after_comparison(evidence_items, warnings, perturbation_type)
+    elif intent in ("evaluate_plan_acceptability", "evaluate_dimension_acceptability"):
+        partial = _render_evaluation_judgment(evidence_items, prompt_text, perturbation_type)
     # Overview impact intents own their own "graceful partial" behaviour
     # — describe current status + name what's missing, never claim
     # change without diff.
@@ -737,6 +1433,15 @@ def _render_partial_answer(
         partial = _render_solution_summary(evidence_items)
     elif intent == "what_to_watch":
         partial = _render_what_to_watch(evidence_items)
+    elif intent == "unknown" and evidence_items:
+        # Within-family aspectual fallback: intent didn't classify but the
+        # evidence layer surfaced grounded payload fields.
+        # First try the ranking aspect (B1, A-006) — if it returns prose,
+        # use it; otherwise fall back to the generic aspectual template.
+        ranking_prose = _render_ranking_aspect(evidence_items, prompt_text)
+        if ranking_prose is not None:
+            return ranking_prose
+        return _render_aspectual_fallback(evidence_items, prompt_text)
     else:
         partial = "Partial information is available."
 
@@ -817,6 +1522,7 @@ def verbalize(
     next_actions: list[str],
     prompt_text: str = "",
     compute_decision: Optional[dict] = None,
+    perturbation_type: Optional[str] = None,
 ) -> str:
     """Render the contract to a natural-language answer_text string.
 
@@ -836,14 +1542,17 @@ def verbalize(
 
     # Partial answer
     if behavior_class == "partial_answer_with_warning":
-        return _render_partial_answer(intent, evidence_items, warnings, missing_fields)
+        return _render_partial_answer(
+            intent, evidence_items, warnings, missing_fields, prompt_text,
+            perturbation_type=perturbation_type,
+        )
 
     # Direct answer or direct_answer_with_warning
     text = ""
     if intent == "objective_value":
         text = _render_objective_value(evidence_items, warnings)
     elif intent == "objective_delta":
-        text = _render_objective_delta(evidence_items, warnings)
+        text = _render_objective_delta(evidence_items, warnings, perturbation_type)
     elif intent == "feasibility_status":
         text = _render_feasibility_status(evidence_items, warnings)
     elif intent == "route_end_time":
@@ -860,11 +1569,10 @@ def verbalize(
         text = _render_lateness_summary(evidence_items)
     elif intent == "new_customer_assignment":
         text = _render_new_customer_assignment(evidence_items, warnings)
-    elif intent in ("before_after_comparison",):
-        if warnings:
-            text = _render_useful_refusal(warnings, missing_fields, next_actions)
-        else:
-            text = "Before/after comparison is not supported without a baseline payload."
+    elif intent == "before_after_comparison":
+        text = _render_before_after_comparison(evidence_items, warnings, perturbation_type)
+    elif intent in ("evaluate_plan_acceptability", "evaluate_dimension_acceptability"):
+        text = _render_evaluation_judgment(evidence_items, prompt_text, perturbation_type)
     elif intent == "perturbation_summary":
         text = _render_perturbation_summary(evidence_items)
     elif intent == "scenario_summary":

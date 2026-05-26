@@ -40,6 +40,8 @@ Local validation rejects LLM output if:
 from __future__ import annotations
 
 import json
+import os
+import re
 import time
 from typing import Any, Optional
 
@@ -162,6 +164,21 @@ Overview intents:
 - what_to_watch: "What should I pay attention to?", "Anything concerning here?", "Where should I look first?"
 
 For overview intents, set requires_baseline=False unless the prompt explicitly asks about change/impact compared to a baseline. perturbation_impact_summary and route_impact_summary should set requires_baseline=True when the prompt asks about change/impact.
+
+Evaluation intents (A-008):
+- evaluate_plan_acceptability: general "Is this plan acceptable?", "Should I be worried?", "Is this OK?", "Can I live with this outcome?", "Did we do well absorbing this?", "Is this a good outcome?"
+- evaluate_dimension_acceptability: dimension-specific "Is the lateness reasonable?", "Is the cost change acceptable?", "Are we still feasible enough?", "Is the structural change within bounds?"
+
+For evaluation intents, set requires_baseline=False (the verdict is computed against documented thresholds, not against a baseline). The contract layer runs the actual threshold checks; the LLM's job is only to recognize that the prompt is asking for a judgment, not a value.
+
+DO NOT use evaluation intents for comparison-shaped prompts. These belong to before_after_comparison / objective_delta / perturbation_impact_summary, not evaluation:
+- "Did anything improve?" → before_after_comparison (asks what changed)
+- "Did things get worse?" → before_after_comparison
+- "What got better/worse?" → before_after_comparison
+- "How did this affect X?" → perturbation_impact_summary
+- "How much did the cost change?" → objective_delta
+
+Evaluation queries ask for a verdict against an implicit standard ("acceptable", "good enough"), not a comparison against the baseline.
 """
 
 
@@ -194,6 +211,8 @@ def _build_user_message(
             "perturbation_impact_summary": "How is this perturbation affecting the solution? Did it make things worse?",
             "route_impact_summary": "How is this perturbation affecting routes? Which routes changed?",
             "what_to_watch": "What should I pay attention to? Anything concerning here?",
+            "evaluate_plan_acceptability": "Is this plan acceptable / OK / good enough / something to worry about? Asks for a judgment, not a value.",
+            "evaluate_dimension_acceptability": "Is the lateness / cost / feasibility / structure acceptable? Dimension-scoped judgment.",
         },
         "available_fields": available_fields or {
             "routes": True,
@@ -277,6 +296,36 @@ def validate_llm_frame(
             )
 
     return ValidationOutcome.accepted, None
+
+
+def _frame_with_retained_llm_entities(
+    fallback_frame: QueryFrame,
+    llm_frame: LLMSemanticFrame,
+    note: str,
+) -> QueryFrame:
+    """Return a copy of ``fallback_frame`` carrying the LLM-extracted
+    entities (customer_ids, route_labels) when the LLM frame is rejected
+    but the downstream layer (aspectual fallback) can still use what the
+    LLM saw. Only call this when the fallback frame's intent is "unknown"
+    so we don't conflate D1's intent with the LLM's entity extraction.
+    """
+    cust = [int(c) for c in (llm_frame.entities.customer_ids or [])]
+    routes = [str(r) for r in (llm_frame.entities.route_labels or [])]
+    if not cust and not routes:
+        return fallback_frame
+    return QueryFrame(
+        intent=fallback_frame.intent,
+        source=fallback_frame.source,
+        confidence=fallback_frame.confidence,
+        entities=QueryFrameEntities(customer_ids=cust, route_labels=routes),
+        requires_baseline=fallback_frame.requires_baseline,
+        comparison_type=fallback_frame.comparison_type,
+        ambiguity=fallback_frame.ambiguity,
+        adapter_notes=list(fallback_frame.adapter_notes) + [note],
+        c0_intent=fallback_frame.c0_intent,
+        overridden=fallback_frame.overridden,
+        model_name=fallback_frame.model_name,
+    )
 
 
 def _llm_frame_to_query_frame(
@@ -372,6 +421,23 @@ def _normalize_llm_raw(raw: dict) -> dict:
     out.setdefault("recompute_request", False)
     out.setdefault("alternative_intents", [])
 
+    # 3b. Coerce bare-string alternative_intents into LLMAlternativeIntent
+    # shape. Observed via telemetry 2026-05-26: gpt-5.4-mini frequently
+    # emits ``alternative_intents: ["objective_value", "route_count"]``
+    # rather than the schema-required ``[{"intent": ..., "reason": ...}]``.
+    # We coerce defensively rather than tightening the prompt — the
+    # contract validation still happens downstream.
+    alts = out.get("alternative_intents")
+    if isinstance(alts, list):
+        coerced: list = []
+        for entry in alts:
+            if isinstance(entry, str):
+                coerced.append({"intent": entry, "reason": ""})
+            elif isinstance(entry, dict):
+                coerced.append(entry)
+            # else: drop silently (validation would have flagged it anyway)
+        out["alternative_intents"] = coerced
+
     # 4. Normalize ambiguity block
     ambiguity = out.get("ambiguity")
     if not isinstance(ambiguity, dict):
@@ -381,6 +447,175 @@ def _normalize_llm_raw(raw: dict) -> dict:
     out["ambiguity"] = ambiguity
 
     return out
+
+
+# ---------------------------------------------------------------------------
+# A-008.5 R2 — LLM self-correction retry on Pydantic ValidationError
+# ---------------------------------------------------------------------------
+#
+# Stage 0/A-002 telemetry noted that the gpt-5.4-mini emitter occasionally
+# drifts from the LLMSemanticFrame contract (extra keys, wrong types,
+# missing required fields). The Stage-3 corpus retains a small residual
+# rate of schema-validation failures even after the _normalize_llm_raw
+# defensive coercion. R2 issues a single retry with feedback referencing
+# the offending fields; the recovered frame still flows through every
+# semantic guard (counterfactual, ranking, evaluation) before acceptance.
+#
+# Scope: retry fires ONLY on Pydantic ValidationError after _normalize_llm_raw.
+# Other failure classes (low confidence, ambiguous, guard-fired) are by
+# design and never trigger a retry. JSON-decode errors are out of scope
+# for this initial implementation — they typically indicate a deeper
+# model malfunction that one extra round-trip will not fix.
+
+_RETRY_DISABLE_ENV = "COPILOT_DISABLE_LLM_RETRY"
+
+
+def _retry_enabled() -> bool:
+    """Return True iff the LLM retry-on-validation-error path is active."""
+    val = os.environ.get(_RETRY_DISABLE_ENV, "").strip().lower()
+    return val not in ("1", "true", "yes", "on")
+
+
+def _classify_validation_error(exc: ValidationError) -> str:
+    """Map a Pydantic ValidationError into a coarse retry_reason category.
+
+    Categories are used for telemetry / morning-summary bucketing only.
+    Pydantic v2 type tags this classifier recognises:
+      - ``missing`` / ``*_required`` → missing_required_field
+      - ``*_parsing`` / ``*_type`` (bool_type/int_type/etc.) → wrong_type
+      - ``extra_forbidden``, ``value_error``, range checks → schema_validation_error
+    """
+    try:
+        errors = exc.errors()
+    except Exception:  # noqa: BLE001 — pydantic version safety
+        return "schema_validation_error"
+    if not errors:
+        return "schema_validation_error"
+    types = {str(e.get("type", "")) for e in errors}
+    if any(t == "missing" or t.endswith("_required") for t in types):
+        return "missing_required_field"
+    if any(
+        t.endswith("_parsing")
+        or t.endswith("_type")
+        or t.startswith("type_error")
+        for t in types
+    ):
+        return "wrong_type"
+    return "schema_validation_error"
+
+
+def _build_retry_feedback(
+    original_user_message: str,
+    previous_raw_response: str,
+    validation_error: ValidationError,
+) -> list[dict]:
+    """Build the messages list for the corrective retry round-trip.
+
+    Includes the original user message verbatim (so the model has the full
+    parser-task context), the previous failed JSON response, and per-error
+    correction instructions derived from the Pydantic error structure.
+    """
+    try:
+        errors = validation_error.errors()
+    except Exception:  # noqa: BLE001 — pydantic version safety
+        errors = []
+    instruction_lines: list[str] = []
+    for err in errors[:5]:  # cap at 5 to keep retry prompt tight
+        loc_path = ".".join(str(p) for p in err.get("loc", ()) if p != "__root__")
+        msg = str(err.get("msg", "")).strip()
+        etype = str(err.get("type", "")).strip()
+        if etype == "missing" or etype.endswith("_required"):
+            instruction_lines.append(
+                f"- include the required field: '{loc_path or 'root'}'"
+            )
+        elif "extra_forbidden" in etype:
+            instruction_lines.append(
+                f"- remove the unexpected field: '{loc_path or 'root'}' "
+                "(the schema rejects extra keys)"
+            )
+        elif etype:
+            instruction_lines.append(
+                f"- field '{loc_path or 'root'}' is invalid: {msg} (error: {etype})"
+            )
+        else:
+            instruction_lines.append(
+                f"- field '{loc_path or 'root'}' is invalid: {msg}"
+            )
+    if not instruction_lines:
+        instruction_lines.append(
+            "- the previous JSON did not validate against the LLMSemanticFrame schema"
+        )
+    correction_block = "\n".join(instruction_lines)
+
+    retry_text = (
+        "Your previous JSON response failed schema validation. "
+        "Return ONLY a corrected JSON object matching the LLMSemanticFrame "
+        "schema described in the system prompt — no other text, no "
+        "explanations, no markdown fences.\n\n"
+        f"Previous response:\n{previous_raw_response}\n\n"
+        f"Validation issues to fix:\n{correction_block}\n\n"
+        "Return the corrected JSON now."
+    )
+
+    return [
+        {"role": "system", "content": _SYSTEM_PROMPT},
+        {"role": "user", "content": original_user_message},
+        {"role": "assistant", "content": previous_raw_response or ""},
+        {"role": "user", "content": retry_text},
+    ]
+
+
+def _retry_with_feedback(
+    client: Any,
+    model: str,
+    original_user_message: str,
+    previous_raw_response: str,
+    validation_error: ValidationError,
+) -> tuple[Optional[LLMSemanticFrame], Optional[ValidationError], Optional[str]]:
+    """Issue ONE corrective retry round-trip to the LLM.
+
+    Returns ``(frame_or_none, retry_validation_error_or_none, call_error_or_none)``.
+    ``frame_or_none`` is set when the retry produced a schema-valid frame.
+    ``retry_validation_error_or_none`` is set when the retry response also
+    failed Pydantic validation. ``call_error_or_none`` is set when the
+    underlying OpenAI client returned an error or the JSON could not be
+    decoded.
+    """
+    from product.evaluation.model_clients.openai_client import (
+        call_openai_contract_model,
+    )
+
+    messages = _build_retry_feedback(
+        original_user_message, previous_raw_response, validation_error
+    )
+    try:
+        result = call_openai_contract_model(
+            client=client,
+            model=model,
+            messages=messages,
+            temperature=0.0,
+            max_output_tokens=512,
+            response_format_json_object=True,
+            max_retries=1,
+        )
+    except Exception as exc:  # noqa: BLE001 — defensive
+        return None, None, f"retry_call_exception: {type(exc).__name__}: {exc}"
+
+    if result.error:
+        return None, None, f"retry_call_error: {result.error}"
+
+    try:
+        raw = json.loads(result.raw_response_text)
+    except json.JSONDecodeError as exc:
+        return None, None, f"retry_json_decode_error: {exc}"
+
+    raw = _normalize_llm_raw(raw)
+
+    try:
+        frame = LLMSemanticFrame.model_validate(raw)
+        return frame, None, None
+    except ValidationError as exc:
+        return None, exc, None
 
 
 # ---------------------------------------------------------------------------
@@ -409,9 +644,10 @@ def _call_llm(
         model_name=model,
     )
 
+    user_message = _build_user_message(prompt, available_fields)
     messages = [
         {"role": "system", "content": _SYSTEM_PROMPT},
-        {"role": "user", "content": _build_user_message(prompt, available_fields)},
+        {"role": "user", "content": user_message},
     ]
 
     t0 = time.monotonic()
@@ -447,6 +683,7 @@ def _call_llm(
     # Models occasionally place customer_ids/route_labels at the top level
     # or wrap flags in a nested dict despite explicit schema instructions.
     raw = _normalize_llm_raw(raw)
+    raw_response_text = result.raw_response_text or ""
 
     # Schema validation via Pydantic
     try:
@@ -454,14 +691,251 @@ def _call_llm(
         meta.schema_valid = True
     except ValidationError as exc:
         meta.schema_valid = False
-        meta.validation_outcome = ValidationOutcome.rejected_invalid_schema.value
-        meta.fallback_used = True
-        meta.fallback_reason = f"schema_validation_error: {exc.error_count()} error(s)"
-        return None, meta
+        try:
+            errs = exc.errors()
+        except Exception:  # noqa: BLE001 — pydantic version safety
+            errs = []
+        meta.validation_error_details = [
+            {
+                "loc": list(e.get("loc", ())),
+                "msg": str(e.get("msg", "")),
+                "type": str(e.get("type", "")),
+            }
+            for e in errs[:3]
+        ]
+
+        # A-008.5 R2: attempt a single corrective retry with feedback.
+        # The recovered frame still flows through every semantic guard
+        # below, so guard interactions remain identical to a first-try
+        # validated frame.
+        if _retry_enabled():
+            meta.retry_fired = True
+            meta.retry_reason = _classify_validation_error(exc)
+            t_retry = time.monotonic()
+            retry_frame, retry_exc, call_err = _retry_with_feedback(
+                client=client,
+                model=model,
+                original_user_message=user_message,
+                previous_raw_response=raw_response_text,
+                validation_error=exc,
+            )
+            meta.retry_latency_ms = int((time.monotonic() - t_retry) * 1000)
+            if retry_frame is not None:
+                meta.retry_success = True
+                meta.schema_valid = True
+                frame = retry_frame
+                # Fall through to semantic guards below — DO NOT return here.
+            else:
+                meta.retry_success = False
+                meta.validation_outcome = (
+                    ValidationOutcome.rejected_invalid_schema.value
+                )
+                meta.fallback_used = True
+                if call_err is not None:
+                    meta.fallback_reason = call_err
+                else:
+                    err_count = (
+                        retry_exc.error_count() if retry_exc is not None else "?"
+                    )
+                    meta.fallback_reason = (
+                        f"schema_validation_error_after_retry: {err_count} error(s)"
+                    )
+                return None, meta
+        else:
+            meta.validation_outcome = (
+                ValidationOutcome.rejected_invalid_schema.value
+            )
+            meta.fallback_used = True
+            meta.fallback_reason = (
+                f"schema_validation_error: {exc.error_count()} error(s)"
+            )
+            return None, meta
 
     meta.llm_intent = frame.intent
     meta.confidence = frame.confidence
+
+    # A-008 evaluation guard: redirect mis-classified comparison prompts
+    # ("Did anything improve?") back to before_after_comparison so the
+    # comparison renderer runs instead of the evaluation verdict.
+    guarded_frame_e, fired_e = _apply_evaluation_guard(prompt, frame)
+    if fired_e:
+        meta.evaluation_guard_fired = True
+        meta.llm_intent = guarded_frame_e.intent
+        frame = guarded_frame_e
+
+    # B1-guard (A-006): force counterfactual prompts to intent="unknown"
+    # so D4's needs_recompute affordance fires instead of confabulating a
+    # descriptive answer. Runs after validation; never rejects.
+    guarded_frame, fired = _apply_counterfactual_guard(prompt, frame)
+    if fired:
+        meta.counterfactual_guard_fired = True
+        meta.llm_intent = guarded_frame.intent
+        frame = guarded_frame
+
+    # B1 ranking guard (A-006): force ranking-shaped prompts to
+    # intent="unknown" so the evidence layer's ranking aspect dispatcher
+    # fires instead of the LLM picking what_to_watch / lateness_summary
+    # for "top 3 customers by lateness" etc.
+    guarded_frame_r, fired_r = _apply_ranking_guard(prompt, frame)
+    if fired_r:
+        meta.ranking_guard_fired = True
+        meta.llm_intent = guarded_frame_r.intent
+        return guarded_frame_r, meta
+
     return frame, meta
+
+
+# ---------------------------------------------------------------------------
+# B1-guard (A-006) — counterfactual subjunctive guard
+# ---------------------------------------------------------------------------
+#
+# Phase A §5 observed that LLM-on regresses counterfactual handling by
+# re-classifying "what if vehicle 3 broke down" as perturbation_summary
+# describing the *current* perturbation — bypassing D4's correct
+# needs_recompute affordance. This guard fires on subjunctive prompt
+# patterns and forces the LLM-returned frame's intent back to "unknown"
+# so the downstream contract surfaces the recompute affordance instead
+# of confabulating a descriptive answer.
+#
+# The guard runs only when the LLM frame would otherwise be accepted;
+# it never affects D1-source frames.
+
+_SUBJUNCTIVE_PATTERNS = re.compile(
+    r"\b(what\s+if|"
+    r"would\s+happen\s+if|"
+    r"if\s+\w+\s+(?:was|were|broke|breaks|wasn'?t|weren'?t|hadn'?t|didn'?t)|"
+    r"suppose|imagine|pretend|assuming|hypothetically)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_counterfactual(prompt: str) -> bool:
+    return bool(prompt) and _SUBJUNCTIVE_PATTERNS.search(prompt) is not None
+
+
+# Ranking-prompt detection mirrors the deterministic D1 detector in
+# `product.copilot.intent`. Kept here so the LLM-side guard does not
+# require an upstream import (intent.py imports the LLM adapter via the
+# d_final path, so the inverse would create a cycle).
+_RANKING_SUP_RE = re.compile(
+    r"\b(worst|best|most|least|biggest|smallest|longest|shortest|"
+    r"tightest|widest|heaviest|lightest|top|bottom|rank(?:ing)?|"
+    r"closest|furthest|farthest|fastest|slowest|highest|lowest)\b",
+    re.IGNORECASE,
+)
+_RANKING_TGT_RE = re.compile(
+    r"\b(routes?|customers?|vehicles?|deliver(?:y|ies)|stops?|drivers?|"
+    r"problems?|issues?|things?|items?|points?|risks?)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_ranking_prompt(prompt: str) -> bool:
+    if not prompt:
+        return False
+    return (
+        _RANKING_SUP_RE.search(prompt) is not None
+        and _RANKING_TGT_RE.search(prompt) is not None
+    )
+
+
+def _apply_ranking_guard(
+    prompt: str,
+    llm_frame: Optional[LLMSemanticFrame],
+) -> tuple[Optional[LLMSemanticFrame], bool]:
+    """Force ranking-shaped prompts back to ``intent='unknown'``.
+
+    Mirrors `_apply_counterfactual_guard`. Activates when the prompt has
+    a superlative + target combination and the LLM-returned intent is
+    anything other than ``unknown`` — typically the LLM picks
+    ``what_to_watch`` or ``lateness_summary`` for prompts like "top 3
+    customers by lateness", which preempts the deterministic ranking
+    aspect dispatcher. The guard routes the prompt back to ``unknown``
+    so the evidence layer's ``derive_ranking_spec`` + aspectual ranking
+    branch can surface a ranked list.
+    """
+    if llm_frame is None:
+        return llm_frame, False
+    if not _is_ranking_prompt(prompt):
+        return llm_frame, False
+    if (getattr(llm_frame, "intent", None) or "unknown") == "unknown":
+        return llm_frame, False
+    try:
+        guarded = llm_frame.model_copy(
+            update={"intent": "unknown", "alternative_intents": []}
+        )
+    except Exception:  # pragma: no cover — defensive
+        return llm_frame, False
+    return guarded, True
+
+
+# A-008: evaluation-guard. The LLM occasionally classifies
+# comparison-shaped prompts ("Did anything improve?", "Did things get
+# worse?") as evaluate_plan_acceptability because the verb implies a
+# judgment. The deterministic guard re-routes such prompts to
+# before_after_comparison so the comparison renderer runs.
+_COMPARISON_REDIRECT_TOKENS = re.compile(
+    r"\b(improve(?:d|ment)?|improving|got\s+(?:better|worse)|"
+    r"any(?:thing)?\s+(?:better|worse|different|change)|"
+    r"differs?|changed|change\s+from|delta|"
+    r"versus|vs\.?|compared\s+to|against\s+baseline)\b",
+    re.IGNORECASE,
+)
+
+
+def _apply_evaluation_guard(
+    prompt: str,
+    llm_frame: Optional[LLMSemanticFrame],
+) -> tuple[Optional[LLMSemanticFrame], bool]:
+    """Redirect LLM-emitted evaluation intent to comparison when the
+    prompt has explicit comparison framing ("did anything improve",
+    "got better/worse", etc.).
+    """
+    if llm_frame is None:
+        return llm_frame, False
+    intent = getattr(llm_frame, "intent", None) or ""
+    if not intent.startswith("evaluate_"):
+        return llm_frame, False
+    if not _COMPARISON_REDIRECT_TOKENS.search(prompt or ""):
+        return llm_frame, False
+    try:
+        guarded = llm_frame.model_copy(
+            update={
+                "intent": "before_after_comparison",
+                "requires_baseline": True,
+                "alternative_intents": [],
+            }
+        )
+    except Exception:  # pragma: no cover — defensive
+        return llm_frame, False
+    return guarded, True
+
+
+def _apply_counterfactual_guard(
+    prompt: str,
+    llm_frame: Optional[LLMSemanticFrame],
+) -> tuple[Optional[LLMSemanticFrame], bool]:
+    """Force counterfactual prompts back to ``intent='unknown'``.
+
+    Returns ``(frame, guard_fired)``. When the prompt has a subjunctive
+    pattern and the LLM frame's intent is anything other than ``unknown``,
+    the frame is shallow-copied with ``intent='unknown'`` and the
+    ``alternative_intents`` list emptied so downstream consumers can't
+    re-promote the rejected intent. ``guard_fired`` is True in that case.
+    """
+    if llm_frame is None:
+        return llm_frame, False
+    if not _is_counterfactual(prompt):
+        return llm_frame, False
+    if (getattr(llm_frame, "intent", None) or "unknown") == "unknown":
+        return llm_frame, False
+    try:
+        guarded = llm_frame.model_copy(
+            update={"intent": "unknown", "alternative_intents": []}
+        )
+    except Exception:  # pragma: no cover — defensive
+        return llm_frame, False
+    return guarded, True
 
 
 # ---------------------------------------------------------------------------
@@ -506,11 +980,21 @@ def infer_intent_llm_only(
 
     meta.fallback_used = True
     meta.fallback_reason = reason
-    return (
-        QueryFrame(intent=c0_intent or "unknown", source="fallback", confidence=0.5,
-                   adapter_notes=[f"llm_only_rejected: {reason}"], c0_intent=c0_intent),
-        meta,
+    fallback_frame = QueryFrame(
+        intent=c0_intent or "unknown",
+        source="fallback",
+        confidence=0.5,
+        adapter_notes=[f"llm_only_rejected: {reason}"],
+        c0_intent=c0_intent,
     )
+    if fallback_frame.intent == "unknown":
+        retained = _frame_with_retained_llm_entities(
+            fallback_frame, frame, "retained_llm_entities_for_aspect_fallback"
+        )
+        if retained is not fallback_frame:
+            meta.rejected_llm_entities = True
+            return retained, meta
+    return fallback_frame, meta
 
 
 def infer_intent_llm_fallback(
@@ -543,6 +1027,14 @@ def infer_intent_llm_fallback(
     meta.tokens_completion = llm_meta.tokens_completion
     meta.schema_valid = llm_meta.schema_valid
     meta.llm_intent = llm_meta.llm_intent
+    meta.validation_error_details = llm_meta.validation_error_details
+    meta.counterfactual_guard_fired = llm_meta.counterfactual_guard_fired
+    meta.ranking_guard_fired = llm_meta.ranking_guard_fired
+    meta.evaluation_guard_fired = llm_meta.evaluation_guard_fired
+    meta.retry_fired = llm_meta.retry_fired
+    meta.retry_success = llm_meta.retry_success
+    meta.retry_reason = llm_meta.retry_reason
+    meta.retry_latency_ms = llm_meta.retry_latency_ms
 
     if llm_frame is None:
         meta.fallback_used = True
@@ -559,10 +1051,19 @@ def infer_intent_llm_fallback(
         meta.confidence = llm_frame.confidence
         return _llm_frame_to_query_frame(llm_frame, meta.model_name or model, d1_intent), meta
 
-    # LLM rejected — keep D1
+    # LLM rejected — keep D1, optionally retaining LLM-extracted entities
+    # when D1 itself returned "unknown" (the aspectual-fallback layer can
+    # use them downstream).
     meta.fallback_used = True
     meta.fallback_reason = reason
     meta.validation_outcome = ValidationOutcome.fallback_to_d1.value
+    if d1_intent == "unknown":
+        retained = _frame_with_retained_llm_entities(
+            d1_frame, llm_frame, "retained_llm_entities_for_aspect_fallback"
+        )
+        if retained is not d1_frame:
+            meta.rejected_llm_entities = True
+            return retained, meta
     return d1_frame, meta
 
 
@@ -604,6 +1105,14 @@ def infer_intent_hybrid_guarded(
     meta.tokens_completion = llm_meta.tokens_completion
     meta.schema_valid = llm_meta.schema_valid
     meta.llm_intent = llm_meta.llm_intent
+    meta.validation_error_details = llm_meta.validation_error_details
+    meta.counterfactual_guard_fired = llm_meta.counterfactual_guard_fired
+    meta.ranking_guard_fired = llm_meta.ranking_guard_fired
+    meta.evaluation_guard_fired = llm_meta.evaluation_guard_fired
+    meta.retry_fired = llm_meta.retry_fired
+    meta.retry_success = llm_meta.retry_success
+    meta.retry_reason = llm_meta.retry_reason
+    meta.retry_latency_ms = llm_meta.retry_latency_ms
 
     if llm_frame is None:
         # LLM call failed — keep D1
@@ -618,6 +1127,13 @@ def infer_intent_hybrid_guarded(
     if outcome != ValidationOutcome.accepted:
         meta.fallback_used = True
         meta.fallback_reason = reason
+        if d1_intent == "unknown":
+            retained = _frame_with_retained_llm_entities(
+                d1_frame, llm_frame, "retained_llm_entities_for_aspect_fallback"
+            )
+            if retained is not d1_frame:
+                meta.rejected_llm_entities = True
+                return retained, meta
         return d1_frame, meta
 
     # 3. Both valid — prefer frame that preserves semantic flags

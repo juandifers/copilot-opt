@@ -1,7 +1,7 @@
 // Map: native Euclidean coordinates (Solomon 0–100 / Homberger 0–200).
 // Renders depot, customer pins, and route polylines. Selection is shared
 // with Schedule and Tables; clicking a customer or route highlights everywhere.
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CustomerGeometry,
   CustomerScheduleRow,
@@ -91,6 +91,40 @@ interface Hover {
 
 export function MapPanel({ scenario, selection, setSelection, lens, diffData }: Props) {
   const [hover, setHover] = useState<Hover | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState<{ w: number; h: number }>({ w: 800, h: 400 });
+  const onResize = useCallback(() => {
+    const el = wrapRef.current;
+    if (el) setContainerSize({ w: el.clientWidth || 800, h: el.clientHeight || 400 });
+  }, []);
+  useEffect(() => {
+    onResize();
+    const el = wrapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(onResize);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [onResize]);
+
+  // User-driven pan/zoom layered on top of selection-driven viewBox.
+  const [userPan, setUserPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [userZoom, setUserZoom] = useState(1);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragRef = useRef<{ startX: number; startY: number; startPan: { x: number; y: number } } | null>(null);
+  // Store latest values in refs so the wheel handler closure stays current.
+  const panRef = useRef(userPan);
+  panRef.current = userPan;
+  const zoomRef = useRef(userZoom);
+  zoomRef.current = userZoom;
+
+  const prevSelection = useRef(selection);
+  if (prevSelection.current !== selection) {
+    prevSelection.current = selection;
+    if (userPan.x !== 0 || userPan.y !== 0 || userZoom !== 1) {
+      setUserPan({ x: 0, y: 0 });
+      setUserZoom(1);
+    }
+  }
 
   // Pre-compute scenario-derived structures (safe with null scenario).
   // Hooks must run on every render in the same order, so we declare useMemo
@@ -109,8 +143,10 @@ export function MapPanel({ scenario, selection, setSelection, lens, diffData }: 
   const W = bound + PAD * 2;
   const H = bound + PAD * 2;
 
-  // Selection-driven viewBox zoom (declared up-front so hook order is stable).
-  const viewBox = useMemo(() => {
+  // Selection-driven base viewBox (declared up-front so hook order is stable).
+  // Uses the container's actual aspect ratio so the zoom fills the panel
+  // instead of letterboxing a forced-square viewBox.
+  const baseViewBox = useMemo(() => {
     const fullVB = `0 0 ${W} ${H}`;
     if (!scenario || customers.length === 0) return fullVB;
     if (selection.kind === 'none' || selection.kind === 'summary') return fullVB;
@@ -143,20 +179,76 @@ export function MapPanel({ scenario, selection, setSelection, lens, diffData }: 
       if (p.x > maxX) maxX = p.x;
       if (p.y > maxY) maxY = p.y;
     }
-    const w = maxX - minX;
-    const h = maxY - minY;
-    const side = Math.max(w, h, bound * 0.18) * 1.25;
+    const bw = maxX - minX;
+    const bh = maxY - minY;
+    const aspect = containerSize.w / Math.max(containerSize.h, 1);
+    const minDim = bound * 0.18;
+    let vbW = Math.max(bw, minDim) * 1.25;
+    let vbH = Math.max(bh, minDim) * 1.25;
+    if (vbW / vbH < aspect) {
+      vbW = vbH * aspect;
+    } else {
+      vbH = vbW / aspect;
+    }
+    vbW = Math.min(vbW, W);
+    vbH = Math.min(vbH, H);
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
-    let vbMinX = cx - side / 2;
-    let vbMinY = cy - side / 2;
-    vbMinX = Math.max(0, Math.min(vbMinX, bound - side));
-    vbMinY = Math.max(0, Math.min(vbMinY, bound - side));
-    const clampedSide = Math.min(side, bound);
+    let vbMinX = cx - vbW / 2;
+    let vbMinY = cy - vbH / 2;
+    vbMinX = Math.max(0, Math.min(vbMinX, bound - vbW));
+    vbMinY = Math.max(0, Math.min(vbMinY, bound - vbH));
     const svgMinX = vbMinX + PAD;
-    const svgMinY = H - (vbMinY + clampedSide + PAD);
-    return `${svgMinX} ${svgMinY} ${clampedSide} ${clampedSide}`;
-  }, [scenario, selection, customers, depot, bound, W, H, routes, routeOf, customersById]);
+    const svgMinY = H - (vbMinY + vbH + PAD);
+    return `${svgMinX} ${svgMinY} ${vbW} ${vbH}`;
+  }, [scenario, selection, customers, depot, bound, W, H, routes, routeOf, customersById, containerSize]);
+
+  // Apply user pan/zoom on top of the base viewBox.
+  const viewBox = useMemo(() => {
+    const parts = baseViewBox.split(' ').map(Number);
+    if (parts.length !== 4) return baseViewBox;
+    const [bx, by, bw, bh] = parts;
+    const zw = bw / userZoom;
+    const zh = bh / userZoom;
+    const cx = bx + bw / 2 + userPan.x;
+    const cy = by + bh / 2 + userPan.y;
+    return `${cx - zw / 2} ${cy - zh / 2} ${zw} ${zh}`;
+  }, [baseViewBox, userPan, userZoom]);
+
+  const baseVBRef = useRef(baseViewBox);
+  baseVBRef.current = baseViewBox;
+  const viewBoxRef = useRef(viewBox);
+  viewBoxRef.current = viewBox;
+
+  // Non-passive wheel listener so preventDefault works in Chrome.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      const curZoom = zoomRef.current;
+      const newZoom = Math.max(0.5, Math.min(curZoom * factor, 20));
+      const rect = svg!.getBoundingClientRect();
+      const mx = (e.clientX - rect.left) / rect.width;
+      const my = (e.clientY - rect.top) / rect.height;
+      const vbParts = viewBoxRef.current.split(' ').map(Number);
+      const baseParts = baseVBRef.current.split(' ').map(Number);
+      if (vbParts.length !== 4 || baseParts.length !== 4) { setUserZoom(newZoom); return; }
+      const cursorSvgX = vbParts[0] + vbParts[2] * mx;
+      const cursorSvgY = vbParts[1] + vbParts[3] * my;
+      const bw = baseParts[2] / newZoom;
+      const bh = baseParts[3] / newZoom;
+      const newX = cursorSvgX - bw * mx;
+      const newY = cursorSvgY - bh * my;
+      const baseCx = baseParts[0] + baseParts[2] / 2;
+      const baseCy = baseParts[1] + baseParts[3] / 2;
+      setUserPan({ x: (newX + bw / 2) - baseCx, y: (newY + bh / 2) - baseCy });
+      setUserZoom(newZoom);
+    }
+    svg.addEventListener('wheel', onWheel, { passive: false });
+    return () => svg.removeEventListener('wheel', onWheel);
+  }, [!!scenario, customers.length]);
 
   if (!scenario) {
     return (
@@ -219,13 +311,50 @@ export function MapPanel({ scenario, selection, setSelection, lens, diffData }: 
   // Lens disables when there's no schedule to compute from
   const effLens: LensMode = scheduleByCid.size > 0 ? lens : 'route';
 
+  const isUserView = userPan.x !== 0 || userPan.y !== 0 || userZoom !== 1;
+
+  function svgUnitsPerPx() {
+    const parts = viewBox.split(' ').map(Number);
+    if (parts.length !== 4) return 1;
+    return parts[2] / containerSize.w;
+  }
+
+  function handlePointerDown(e: React.PointerEvent) {
+    if (e.button !== 0) return;
+    (e.target as Element).setPointerCapture(e.pointerId);
+    dragRef.current = { startX: e.clientX, startY: e.clientY, startPan: { ...userPan } };
+  }
+  function handlePointerMove(e: React.PointerEvent) {
+    if (!dragRef.current) return;
+    const scale = svgUnitsPerPx();
+    const dx = (e.clientX - dragRef.current.startX) * scale;
+    const dy = (e.clientY - dragRef.current.startY) * scale;
+    setUserPan({ x: dragRef.current.startPan.x - dx, y: dragRef.current.startPan.y - dy });
+  }
+  function handlePointerUp() {
+    dragRef.current = null;
+  }
+
   return (
-    <div className="map-wrap">
+    <div className="map-wrap" ref={wrapRef}>
+      {isUserView && (
+        <button
+          className="map-reset-btn"
+          onClick={() => { setUserPan({ x: 0, y: 0 }); setUserZoom(1); }}
+        >
+          Reset view
+        </button>
+      )}
       <svg
+        ref={svgRef}
         className="map-svg"
         viewBox={viewBox}
         preserveAspectRatio="xMidYMid meet"
-        style={{ transition: 'all 240ms ease' }}
+        style={{ transition: dragRef.current ? 'none' : 'all 240ms ease', cursor: dragRef.current ? 'grabbing' : 'grab' }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
       >
         <defs>
           <pattern

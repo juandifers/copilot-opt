@@ -12,20 +12,10 @@ from typing import Optional
 
 from product.copilot.contracts import AnswerabilityResult
 from product.data import entity_resolution, evidence, payloads
-
-
-# Intents whose answerability depends on a specific customer or route
-# named in the prompt. For these, the contract must additionally check
-# that the named entity is actually in the augmented payload — a
-# customer_arrival question about ``customer 999`` cannot be answered
-# from a payload whose customer IDs are 1..30 even if the
-# customer_schedule schema is fully present.
-_CUSTOMER_BOUND_INTENTS = frozenset({
-    "customer_arrival",
-    "single_customer_route_membership",
-    "same_route_boolean",
-})
-_ROUTE_BOUND_INTENTS = frozenset({"route_end_time"})
+from product.data.entity_intents import (
+    CUSTOMER_BOUND_INTENTS,
+    ROUTE_BOUND_INTENTS,
+)
 
 
 _REQUIRED_FIELDS: dict[str, list[str]] = {
@@ -128,6 +118,24 @@ def compute_answerability(
         # message instead of silently passing.
         if intent in ("unknown", "refusal_or_insufficient_payload"):
             status = "not_answerable"
+        # A-008: evaluation intents are answerable as long as the payload
+        # carries at least one checkable metric. The verdict layer will
+        # skip families whose fields aren't present.
+        elif intent in (
+            "evaluate_plan_acceptability",
+            "evaluate_dimension_acceptability",
+        ):
+            if isinstance(payload, dict) and any(
+                k in payload
+                for k in (
+                    "n_late_customers",
+                    "diff",
+                    "n_routes",
+                )
+            ):
+                status = "answerable"
+            else:
+                status = "not_answerable"
         else:
             status = "answerable"
     elif not missing:
@@ -198,12 +206,12 @@ def compute_answerability(
     # question is not_answerable regardless of which schema fields are
     # present. Missing-fields stays empty — the issue is a phantom
     # entity, not an absent column.
-    if intent in _CUSTOMER_BOUND_INTENTS and entity_resolution.prompt_references_unknown_customer(
+    if intent in CUSTOMER_BOUND_INTENTS and entity_resolution.prompt_references_unknown_customer(
         payload, prompt_text
     ):
         status = "not_answerable"
         missing = []
-    elif intent in _ROUTE_BOUND_INTENTS and entity_resolution.prompt_references_unknown_route(
+    elif intent in ROUTE_BOUND_INTENTS and entity_resolution.prompt_references_unknown_route(
         payload, prompt_text
     ):
         status = "not_answerable"
@@ -224,6 +232,46 @@ def compute_answerability(
         if "reference_solution.objective" not in missing:
             missing = list(missing) + ["reference_solution.objective"]
         status = "partially_answerable"
+
+    # Ranking aspect upgrade (B1, A-006): a "worst route / top 3 customers
+    # by lateness" prompt is `intent == "unknown"` because no contract
+    # intent covers ranking. When the payload supports the requested
+    # dimension, upgrade from not_answerable to partially_answerable so
+    # the evidence layer's ranking dispatcher can run. Family-incompatible
+    # ranking prompts (e.g. ranking on an OBJ payload) stay
+    # not_answerable; the verbalizer produces the family-aware refusal.
+    if intent == "unknown" and status == "not_answerable":
+        rspec_pre = evidence.derive_ranking_spec(prompt_text, family)
+        if rspec_pre is not None and rspec_pre.family_compatible:
+            status = "partially_answerable"
+            missing = []
+
+    # Within-family aspectual fallback (lateness pilot, SCHEDULE-only):
+    # when intent classification returned "unknown" but the payload is
+    # SCHEDULE-shaped and the prompt resolves to at least one canonical
+    # entity OR carries a lateness/timing keyword, upgrade from
+    # not_answerable to partially_answerable. The evidence layer will
+    # then dispatch on the resolved aspect. See AMENDMENTS.md.
+    if intent == "unknown" and status == "not_answerable" and evidence.is_schedule_payload(payload):
+        # False-premise: a prompt that names a customer or route absent
+        # from the payload must not upgrade to partially_answerable.
+        unknown_entity = (
+            entity_resolution.prompt_references_unknown_customer(payload, prompt_text)
+            or entity_resolution.prompt_references_unknown_route(payload, prompt_text)
+        )
+        if not unknown_entity:
+            has_customer = bool(
+                entity_resolution.prompt_customer_ids(prompt_text)
+                & entity_resolution.available_customer_ids(payload)
+            )
+            has_route = bool(
+                entity_resolution.prompt_route_numbers(prompt_text)
+                & entity_resolution.available_display_route_numbers(payload)
+            )
+            aspect = evidence.derive_aspect(prompt_text, has_entities=(has_customer or has_route))
+            if aspect is not None and (has_customer or has_route or aspect == "lateness"):
+                status = "partially_answerable"
+                missing = []
 
     return AnswerabilityResult(
         status=status,

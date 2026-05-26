@@ -1,0 +1,25 @@
+loaded 924 rows, 924 response objects
+wrote strict CSV → /Users/jd/Documents/copilot-opt/product/evaluation/reports/operator_persona_strict_rebucket.csv
+
+### Heuristic vs strict useful rates per category (LLM-off + LLM-on)
+
+| category | heur useful | strict useful | heur wrong | strict wrong | heur refused-incorrect | strict refused-incorrect | n |
+|---|---|---|---|---|---|---|---|
+| action_recommendation | 0.0% | 0.0% | 68.3% | 68.3% | 15.0% | 0.0% | 60 |
+| adversarial_edge | 0.0% | 0.0% | 19.4% | 19.4% | 0.0% | 0.0% | 36 |
+| comparison | 76.4% | 73.6% | 8.6% | 0.0% | 15.0% | 11.4% | 140 |
+| counterfactual | 77.8% | 100.0% | 11.1% | 0.0% | 0.0% | 0.0% | 36 |
+| evaluation | 8.9% | 85.0% | 85.0% | 6.7% | 6.1% | 8.3% | 180 |
+| justification | 34.6% | 11.5% | 34.6% | 57.7% | 15.4% | 0.0% | 52 |
+| orientation | 73.9% | 73.3% | 0.0% | 0.0% | 26.1% | 0.6% | 176 |
+| prioritized_diagnosis | 39.4% | 36.4% | 22.0% | 25.0% | 38.6% | 38.6% | 132 |
+| risk_fragility | 20.0% | 13.3% | 35.0% | 38.3% | 43.3% | 48.3% | 60 |
+| specific_diagnosis | 96.2% | 94.2% | 0.0% | 0.0% | 3.8% | 1.9% | 52 |
+
+headline (all phases, n=924):
+  heuristic useful: 413 (44.7%)
+  strict   useful: 532 (57.6%)  Δ=+12.9pp
+  heuristic wrong : 285 (30.8%)
+  strict   wrong : 146 (15.8%)  Δ=-15.0pp
+  phase=off (n=231): heur=29.9% strict=39.8%
+  phase=on (n=693): heur=49.6% strict=63.5%

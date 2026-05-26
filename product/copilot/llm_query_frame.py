@@ -48,6 +48,19 @@ ALLOWED_INTENTS: frozenset[str] = frozenset({
     "perturbation_impact_summary",
     "route_impact_summary",
     "what_to_watch",
+    # A-008: evaluation intents. The contract surfaces threshold-grounded
+    # judgments ("acceptable" / "needs_review" / "unacceptable") backed by
+    # documented per-family thresholds (see docs/threshold_rationale.md).
+    # The PV exception escalates any PV-infeasibility check to
+    # "unacceptable" — see evaluation.py for the aggregation rule.
+    "evaluate_plan_acceptability",
+    "evaluate_dimension_acceptability",
+})
+
+# Evaluation intents — A-008.
+EVALUATION_INTENTS: frozenset[str] = frozenset({
+    "evaluate_plan_acceptability",
+    "evaluate_dimension_acceptability",
 })
 
 # Overview/explanation intents — convenience set for downstream layers.
@@ -160,6 +173,45 @@ class LLMAdapterMetadata(BaseModel):
     validation_outcome: str = ValidationOutcome.fallback_to_unknown.value
     d1_intent: Optional[str] = None
     llm_intent: Optional[str] = None
+    # When True, the validated LLM frame was rejected but its extracted
+    # entities (customer_ids, route_labels) were retained in the returned
+    # QueryFrame for downstream consumers (e.g. the aspectual-fallback
+    # layer). Only set when the final d1_intent is "unknown".
+    rejected_llm_entities: bool = False
+    # First 3 pydantic ValidationError entries (truncated for log volume)
+    # when the LLM frame fails schema validation. Each entry is
+    # ``{"loc": [...], "msg": "...", "type": "..."}``. Empty otherwise.
+    # Surfaced in /copilot/ask telemetry for diagnosing LLM drift.
+    validation_error_details: Optional[list[dict]] = None
+    # B1-guard (A-006): True when the subjunctive-pattern guard forced
+    # the LLM-emitted intent back to "unknown" so D4's needs_recompute
+    # affordance fires on counterfactual prompts the LLM mis-classified
+    # as descriptive (e.g. "what if vehicle 3 broke down" classified as
+    # perturbation_summary).
+    counterfactual_guard_fired: bool = False
+    # B1 ranking guard (A-006): True when the LLM picked a non-ranking
+    # intent (what_to_watch / lateness_summary / etc.) for a prompt that
+    # has the superlative+target ranking shape; the guard forces the
+    # intent back to "unknown" so the evidence layer's ranking aspect
+    # dispatcher can surface a ranked list.
+    ranking_guard_fired: bool = False
+    # A-008 evaluation guard: True when the LLM picked evaluate_* but the
+    # prompt has explicit comparison framing ("did anything improve?",
+    # "any better/worse?"); the guard redirects to before_after_comparison.
+    evaluation_guard_fired: bool = False
+    # A-008.5 R2 retry telemetry: True when the LLM frame failed Pydantic
+    # validation on the first call and a single retry with corrective
+    # feedback was issued. ``retry_success`` is True if the retry produced
+    # a schema-valid frame, False if it also failed (then we fall through
+    # to D1). ``retry_reason`` is the categorical class of the *original*
+    # failure that triggered the retry. ``retry_latency_ms`` is the
+    # additional wall-clock cost of the retry attempt (does not include
+    # the original call). Disabled by env var COPILOT_DISABLE_LLM_RETRY=1
+    # for the Stage 4 ablation table.
+    retry_fired: bool = False
+    retry_success: Optional[bool] = None
+    retry_reason: Optional[str] = None
+    retry_latency_ms: Optional[int] = None
 
 
 __all__ = [

@@ -1,7 +1,13 @@
-# Python dependencies for the closing experiment
+# Python dependencies for the thesis system
 # Install with: pip install -r requirements.txt
+#
+# Web framework (product/api/)
+fastapi>=0.110.0
+uvicorn>=0.27.0
+pydantic>=2.6
+# LLM clients
 anthropic>=0.50.0
-jsonschema>=4.0
-# Stage R2-4A — OpenAI prompt-only model baseline
 openai>=1.40.0
 python-dotenv>=1.0.0
+# Utilities
+jsonschema>=4.0

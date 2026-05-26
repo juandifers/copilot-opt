@@ -11,24 +11,20 @@ from typing import Optional
 
 from product.copilot.contracts import AnswerabilityResult, UsefulRefusal
 from product.data import entity_resolution
-
-
-_CUSTOMER_BOUND_INTENTS = frozenset({
-    "customer_arrival",
-    "single_customer_route_membership",
-    "same_route_boolean",
-})
-_ROUTE_BOUND_INTENTS = frozenset({"route_end_time"})
+from product.data.entity_intents import (
+    CUSTOMER_BOUND_INTENTS,
+    ROUTE_BOUND_INTENTS,
+)
 
 
 def _is_false_premise_case(
     intent: str, payload: Optional[dict], prompt_text: str
 ) -> bool:
     """Mirror of the answerability layer's false-premise override."""
-    if intent in _CUSTOMER_BOUND_INTENTS:
+    if intent in CUSTOMER_BOUND_INTENTS:
         if entity_resolution.prompt_references_unknown_customer(payload, prompt_text):
             return True
-    if intent in _ROUTE_BOUND_INTENTS:
+    if intent in ROUTE_BOUND_INTENTS:
         if entity_resolution.prompt_references_unknown_route(payload, prompt_text):
             return True
     return False
@@ -203,7 +199,7 @@ def build_useful_refusal(
 
     reason_parts: list[str] = []
     if false_premise:
-        if intent in _ROUTE_BOUND_INTENTS:
+        if intent in ROUTE_BOUND_INTENTS:
             unknown_routes = sorted(
                 entity_resolution.unknown_route_numbers_from_prompt(
                     payload, prompt_text

@@ -21,6 +21,7 @@ interface Props {
   onLoadDiff: () => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  onMaximize: () => void;
   tab: Tab;
   setTab: (t: Tab) => void;
 }
@@ -483,6 +484,7 @@ export function TablesPanel({
   onLoadDiff,
   collapsed,
   onToggleCollapse,
+  onMaximize,
   tab,
   setTab,
 }: Props) {
@@ -530,7 +532,7 @@ export function TablesPanel({
   if (!scenario) {
     return (
       <>
-        <div className="panel-head" style={{ padding: 0 }}>
+        <div className="panel-head" style={{ padding: 0 }} onDoubleClick={onMaximize}>
           <div className="tab-strip">
             <button className="active" disabled>
               Routes
@@ -567,7 +569,7 @@ export function TablesPanel({
 
   return (
     <>
-      <div className="panel-head" style={{ padding: 0 }}>
+      <div className="panel-head" style={{ padding: 0 }} onDoubleClick={onMaximize}>
         <div className="tab-strip">
           <button
             className={tab === 'routes' ? 'active' : ''}

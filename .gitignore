@@ -42,7 +42,7 @@ htmlcov/
 .pytype/
 
 # ── Data — generated / large binary files ────────────────────────────────────
-data/
+/data/
 *.parquet
 *.log
 *.csv
@@ -53,6 +53,12 @@ data/
 # ── Claude Code local settings ────────────────────────────────────────────────
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+
+# ── Node ──────────────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Frontend build ────────────────────────────────────────────────────────────
+frontend/dist/
 
 # ── macOS ─────────────────────────────────────────────────────────────────────
 .DS_Store
@@ -77,3 +83,7 @@ prompt.md
 
 # ── D5: local-dev recompute runtime artifacts (not benchmark truth) ──────────
 product/api/runtime/
+
+# ── Copilot request telemetry (raw prompts, not for sharing) ─────────────────
+/logs/*
+!/logs/.gitkeep

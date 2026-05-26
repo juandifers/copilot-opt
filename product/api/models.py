@@ -211,6 +211,21 @@ class UiAction(BaseModel):
     expected_runtime_seconds: Optional[float] = None
 
 
+class AdapterEntities(BaseModel):
+    """LLM-extracted entities surfaced on the API response.
+
+    Populated whenever the LLM frame's entity extraction is consumed —
+    either because the frame was accepted (validated path) or because the
+    frame was rejected but its entities were retained for the aspectual
+    fallback layer (``rejected_llm_entities=True``).
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    customer_ids: list[int] = []
+    route_labels: list[str] = []
+
+
 class SemanticAdapterMetadata(BaseModel):
     """D-Final semantic adapter call metadata.
 
@@ -218,15 +233,22 @@ class SemanticAdapterMetadata(BaseModel):
     Never contains API keys or raw model chain-of-thought.
     """
 
+    model_config = ConfigDict(extra="allow")
+
     mode: str
     source: str
     accepted: bool
     fallback_used: bool = False
+    fallback_reason: Optional[str] = None
     confidence: Optional[float] = None
     model_name: Optional[str] = None
     latency_ms: Optional[float] = None
     schema_valid: Optional[bool] = None
     validation_outcome: Optional[str] = None
+    d1_intent: Optional[str] = None
+    llm_intent: Optional[str] = None
+    rejected_llm_entities: bool = False
+    entities: Optional[AdapterEntities] = None
 
 
 class CopilotAskResponse(BaseModel):

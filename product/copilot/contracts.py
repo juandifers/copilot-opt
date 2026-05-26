@@ -50,6 +50,10 @@ Intent = Literal[
     "perturbation_impact_summary",
     "route_impact_summary",
     "what_to_watch",
+    # A-008: evaluation intents — threshold-grounded acceptability
+    # judgments. See docs/threshold_rationale.md.
+    "evaluate_plan_acceptability",
+    "evaluate_dimension_acceptability",
 ]
 
 AnswerabilityStatus = Literal["answerable", "partially_answerable", "not_answerable"]

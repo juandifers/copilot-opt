@@ -1,0 +1,22 @@
+loaded 924 rows from product/evaluation/reports/ablation_v3_no_alternatives/operator_persona_strict_rebucket.csv
+
+| category | heur useful | strict useful | heur wrong | strict wrong | heur refused-incorrect | strict refused-incorrect | n |
+|---|---|---|---|---|---|---|---|
+| action_recommendation | 0.0% | 0.0% | 70.0% | 70.0% | 13.3% | 0.0% | 60 |
+| adversarial_edge | 0.0% | 0.0% | 16.7% | 16.7% | 0.0% | 0.0% | 36 |
+| comparison | 77.1% | 74.3% | 8.6% | 0.0% | 14.3% | 11.4% | 140 |
+| counterfactual | 77.8% | 100.0% | 13.9% | 0.0% | 0.0% | 0.0% | 36 |
+| evaluation | 8.9% | 81.7% | 82.2% | 6.1% | 8.9% | 12.2% | 180 |
+| justification | 28.8% | 9.6% | 44.2% | 63.5% | 11.5% | 0.0% | 52 |
+| orientation | 75.0% | 74.4% | 0.0% | 0.0% | 25.0% | 0.6% | 176 |
+| prioritized_diagnosis | 39.4% | 36.4% | 23.5% | 25.8% | 37.1% | 37.9% | 132 |
+| risk_fragility | 20.0% | 13.3% | 35.0% | 38.3% | 43.3% | 48.3% | 60 |
+| specific_diagnosis | 96.2% | 94.2% | 0.0% | 0.0% | 3.8% | 1.9% | 52 |
+
+headline (all phases, n=924):
+  heuristic useful: 413 (44.7%)
+  strict   useful: 528 (57.1%)
+  heuristic wrong : 288 (31.2%)
+  strict   wrong : 149 (16.1%)
+  phase=off (n=231): heur=29.9% strict=39.8%
+  phase=on (n=693): heur=49.6% strict=62.9%

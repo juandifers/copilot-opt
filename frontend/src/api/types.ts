@@ -154,6 +154,18 @@ export interface CopilotAskRequest {
   family?: string;
 }
 
+export interface AspectualDispatchBlock {
+  triggered: boolean;
+  intent_at_dispatch: string;
+  family: string;
+  aspect: string;
+  entities_resolved: {
+    customer_ids: number[];
+    route_labels: string[];
+  };
+  field_paths_surfaced: string[];
+}
+
 export interface CopilotAskResponse {
   system: string;
   scenario_id: string;
@@ -166,6 +178,7 @@ export interface CopilotAskResponse {
   useful_refusal: Record<string, unknown> | null;
   suggested_next_actions: string[];
   compute_decision: ComputeDecisionBlock | null;
+  aspectual_dispatch?: AspectualDispatchBlock | null;
 }
 
 export interface DiffResponse {

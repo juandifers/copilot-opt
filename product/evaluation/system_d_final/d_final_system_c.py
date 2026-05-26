@@ -93,11 +93,25 @@ def run_system_d_final_on_case(
         update={"suggested_next_actions": suggestions}
     )
 
+    # Perturbation_id is needed by the A-008 evaluation aspect to select
+    # the per-perturbation OBJ threshold. Run2Case doesn't carry it
+    # directly, but the API-call path encodes it in case_id as
+    # ``api::{instance}__{perturbation}``. For Run-2 calibration cases
+    # the format is ``R2-XXX`` and no perturbation tag is available; the
+    # evaluation aspect simply skips OBJ checks when this is empty.
+    _pert_id_from_case = ""
+    if isinstance(case.case_id, str) and "__" in case.case_id:
+        _pert_id_from_case = case.case_id.split("__", 1)[1]
     evidence_items = evidence_mod.build_evidence_items(
         intent=intent,
         payload=augmented,
         generator_record=generator_record,
-        row={"prompt_text": case.prompt_text},
+        row={
+            "prompt_text": case.prompt_text,
+            "family": case.family or "",
+            "perturbation_id": _pert_id_from_case,
+        },
+        query_frame=frame,
     )
 
     # D3 warnings

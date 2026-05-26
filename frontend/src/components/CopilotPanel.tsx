@@ -111,6 +111,118 @@ function fmtTime(v: unknown): string {
 }
 
 // ---------------------------------------------------------------------------
+// Aspectual fallback composer: renders the intent=unknown + evidence path
+// produced by the backend's within-family aspectual dispatcher.
+// ---------------------------------------------------------------------------
+
+const FIELD_LABELS: Record<string, string> = {
+  arrival: 'arrives at',
+  start_service: 'service starts',
+  end_service: 'service ends',
+  tw_early: 'window opens',
+  tw_late: 'window closes',
+  is_late: 'late?',
+  lateness_minutes: 'minutes late',
+  end_time: 'finishes at',
+  has_time_warp: 'time-warp flagged',
+  n_late_customers: 'total late customers',
+  late_customer_ids: 'late customer ids',
+};
+
+function humanizeFieldPath(path: string): { label: string; cid?: number; routeIdx?: number } {
+  // customer_schedule[customer_id=N].FIELD
+  // route_end_times[route_idx=N].FIELD
+  // n_late_customers / late_customer_ids
+  const cidMatch = /customer_id=(\d+)\]\.(\w+)/.exec(path);
+  if (cidMatch) {
+    return {
+      label: FIELD_LABELS[cidMatch[2]] ?? cidMatch[2],
+      cid: Number(cidMatch[1]),
+    };
+  }
+  const ridxMatch = /route_idx=(\d+)\]\.(\w+)/.exec(path);
+  if (ridxMatch) {
+    return {
+      label: FIELD_LABELS[ridxMatch[2]] ?? ridxMatch[2],
+      routeIdx: Number(ridxMatch[1]),
+    };
+  }
+  return { label: FIELD_LABELS[path] ?? path };
+}
+
+function fmtEvidenceValue(v: unknown, field: string): string {
+  if (v === null || v === undefined) return '—';
+  if (typeof v === 'number') {
+    if (field === 'lateness_minutes') return v.toFixed(1) + ' sm';
+    if (field === 'arrival' || field === 'start_service' || field === 'end_service'
+        || field === 'tw_early' || field === 'tw_late' || field === 'end_time') {
+      return v.toFixed(1) + ' sm';
+    }
+    return Number.isInteger(v) ? String(v) : v.toFixed(1);
+  }
+  if (typeof v === 'boolean') return v ? 'yes' : 'no';
+  if (Array.isArray(v)) return v.length === 0 ? 'none' : v.join(', ');
+  return String(v);
+}
+
+function composeAspectualProse(
+  resp: CopilotAskResponse,
+  asp: NonNullable<CopilotAskResponse['aspectual_dispatch']>,
+  sel: SelectFns,
+): React.ReactNode {
+  // Describe the entity scope succinctly. When both customer_ids and
+  // route_labels are present, the route is the user-facing scope — the
+  // customer_ids are usually the route's members surfaced via the
+  // per-customer arrival evidence, not the question's subject.
+  const cids = asp.entities_resolved.customer_ids ?? [];
+  const routeLabels = asp.entities_resolved.route_labels ?? [];
+  let scopeNode: React.ReactNode = 'this scenario';
+  if (routeLabels.length === 1) {
+    const m = /(\d+)/.exec(routeLabels[0]);
+    const idx = m ? Number(m[1]) - 1 : undefined;
+    scopeNode = <RouteRef label={routeLabels[0]} idx={idx} sel={sel} />;
+  } else if (routeLabels.length > 1) {
+    scopeNode = <>{routeLabels.length} routes</>;
+  } else if (cids.length === 1) {
+    scopeNode = <CustomerRef id={cids[0]} sel={sel} />;
+  } else if (cids.length > 1) {
+    scopeNode = <>{cids.length} customers</>;
+  }
+
+  const aspectWord = asp.aspect === 'lateness' ? 'lateness' : 'timing';
+  const header = (
+    <>
+      I'm not 100% sure I caught the question, but here's what I see for{' '}
+      {scopeNode} on {aspectWord}:
+    </>
+  );
+
+  const lines = resp.evidence.map((ev, i) => {
+    const path = (ev as { field_path: string }).field_path;
+    const value = (ev as { value: unknown }).value;
+    const parsed = humanizeFieldPath(path);
+    const fieldName = path.split('.').pop() || path;
+    const valText = fmtEvidenceValue(value, fieldName);
+    return (
+      <div key={i} className="aspect-line">
+        <span className="aspect-key">{parsed.label}</span>
+        <span className="aspect-val">{valText}</span>
+      </div>
+    );
+  });
+
+  return (
+    <>
+      <div className="aspect-header">{header}</div>
+      <div className="aspect-list">{lines}</div>
+      <div className="aspect-footer">
+        Was that what you were asking? If not, try rephrasing.
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Prose composer (returns null if no answerable evidence — caller falls
 // through to refusal text)
 // ---------------------------------------------------------------------------
@@ -119,7 +231,7 @@ function composeProse(
   resp: CopilotAskResponse,
   sel: SelectFns,
 ): React.ReactNode | null {
-  if (resp.answerability.status !== 'answerable') return null;
+  if (resp.answerability.status === 'not_answerable') return null;
   const ev = resp.evidence;
   const findEv = (
     p: string | ((e: EvidenceItem) => boolean),
@@ -364,7 +476,19 @@ function composeProse(
         </>
       );
     }
+    case 'scenario_summary':
+    case 'solution_summary':
+    case 'perturbation_summary':
+    case 'perturbation_impact_summary':
+    case 'route_impact_summary':
+    case 'evaluation_verdict':
+    case 'what_to_watch': {
+      const text = resp.answer_text;
+      if (text) return <>{lead(resp.intent)}{text}</>;
+      return null;
+    }
     default:
+      if (resp.answer_text) return <>{resp.answer_text}</>;
       return null;
   }
 }
@@ -793,7 +917,10 @@ function CopilotMessage({ m, sel }: MsgProps) {
   }
 
   const resp = m.resp;
-  const composed = composeProse(resp, sel);
+  const aspectual = resp.aspectual_dispatch?.triggered ? resp.aspectual_dispatch : null;
+  const composed = aspectual
+    ? composeAspectualProse(resp, aspectual, sel)
+    : composeProse(resp, sel);
   const showProse = composed != null;
 
   return (
@@ -803,7 +930,12 @@ function CopilotMessage({ m, sel }: MsgProps) {
         <div className="answer">
           {showProse ? composed : refusalProse(resp)}
         </div>
-        {resp.compute_decision && <ComputeNote cd={resp.compute_decision} />}
+        {/* Suppress ComputeNote when the aspectual fallback drove the
+           response — compute_decision will read clarification_needed
+           and clash visually with the grounded evidence we just shared. */}
+        {!aspectual && resp.compute_decision && (
+          <ComputeNote cd={resp.compute_decision} />
+        )}
       </div>
     </div>
   );
@@ -814,13 +946,13 @@ function CopilotMessage({ m, sel }: MsgProps) {
 // ---------------------------------------------------------------------------
 
 const SUGGESTIONS = [
-  'What time does route 3 finish?',
-  'When does customer 12 arrive?',
-  'Which customers are late?',
-  'How many routes does this plan use?',
-  'What is the objective?',
-  'Why did the objective increase?',
-  'Which route is customer 42 on?',
+  'How many late customers are there?',
+  'When does route 3 finish?',
+  'Which route is customer 12 on?',
+  'How many routes are we using?',
+  'What changed in this perturbation?',
+  'Rank routes by lateness.',
+  'What time does customer 5 arrive?',
   'What changed between baseline and now?',
 ];
 

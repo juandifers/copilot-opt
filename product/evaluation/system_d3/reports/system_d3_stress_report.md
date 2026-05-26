@@ -25,8 +25,8 @@ D3 (D1 intent + D2 answerability/warning + D3 causal-unsupported warning) vs D2 
 
 ## 4. Must-not-regress 70-cohort
 
-- must_not_regress_70_preserved_count: **70 / 70**
-  - C0-side cases D3 evaluates directly: 64 / 64
+- must_not_regress_70_preserved_count: **68 / 70**
+  - C0-side cases D3 evaluates directly: 62 / 64
   - Axis 4 model-A cases preserved by construction: 6
 
 ## 5. Axis 4 C0-like preservation

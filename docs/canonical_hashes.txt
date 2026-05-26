@@ -1,0 +1,35 @@
+
+Operator-persona — Full architecture
+  combined strict-useful: 56.1%
+  LLM-on strict-useful:   61.5%
+  LLM-off strict-useful:  39.8%
+
+Operator-persona — Retry disabled
+  combined strict-useful: 56.7%
+  LLM-on strict-useful:   62.3%
+  LLM-off strict-useful:  39.8%
+
+Operator-persona — Disambiguation disabled
+  combined strict-useful: 57.1%
+  LLM-on strict-useful:   62.9%
+  LLM-off strict-useful:  39.8%
+
+Operator-persona — LLM disabled (deterministic only)
+  combined strict-useful: 39.8%
+  LLM-on strict-useful:   N/A
+  LLM-off strict-useful:  39.8%
+
+SHA-256 hashes of canonical report files:
+  aa000f214052f347267dcc1b9283e0bbc23ab4551a026f2c37bde597fe72b4a6  product/evaluation/reports/ablation_v1_full/operator_persona_summary.json
+  8c70fbec8a22a24bbeb3ec615e81570f8c0ff7fc12fe6a887347307f697ee0f3  product/evaluation/reports/ablation_v1_full/operator_persona_strict_rebucket.csv
+  7dea6564b5713d119ff505672799eabc5f058d050e40701628be658fcc7b453d  product/evaluation/reports/ablation_v1_full/operator_persona_responses.jsonl
+  aa000f214052f347267dcc1b9283e0bbc23ab4551a026f2c37bde597fe72b4a6  product/evaluation/reports/ablation_v2_no_retry/operator_persona_summary.json
+  85f0f4ffd3628f9fbc197d0c67bf1a68e5aa09935340819f2739d9e76c3d070c  product/evaluation/reports/ablation_v2_no_retry/operator_persona_strict_rebucket.csv
+  2763ec548a7c32e2d5fea19f6fb9b285ce0a1b44aa7073997991392ad7c16f0e  product/evaluation/reports/ablation_v2_no_retry/operator_persona_responses.jsonl
+  aa000f214052f347267dcc1b9283e0bbc23ab4551a026f2c37bde597fe72b4a6  product/evaluation/reports/ablation_v3_no_alternatives/operator_persona_summary.json
+  516d65d965a611ee4d95e084ffef854172de2dbb8427e7f8c20fd5e81e72b5d8  product/evaluation/reports/ablation_v3_no_alternatives/operator_persona_strict_rebucket.csv
+  1fbaafa7a579242f8ce05d05e8780afca63327a4a357b822c91eecf2f1d6c806  product/evaluation/reports/ablation_v3_no_alternatives/operator_persona_responses.jsonl
+  aa000f214052f347267dcc1b9283e0bbc23ab4551a026f2c37bde597fe72b4a6  product/evaluation/reports/ablation_v4_llm_off/operator_persona_summary.json
+  bf3db984c84f5d1629583b5efaf7c49ed4b2713a40ffa677ef3fa22aa8fb3643  product/evaluation/reports/ablation_v4_llm_off/operator_persona_strict_rebucket.csv
+  783a3b251416a577ce3b636f0d0bac0c8dbb2dc3392f8a5518618aca0d1b4fcb  product/evaluation/reports/ablation_v4_llm_off/operator_persona_responses.jsonl
+  2225f171ef161ec5a027fea869bc21e62b1d4e4c0680c757fdcf9737bf9c48e5  logs/variance_panel.jsonl

@@ -17,7 +17,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from product.api import copilot_service, recompute_service, scenario_store
+from product.api import copilot_service, recompute_service, scenario_store, telemetry
 from product.api.models import (
     ApiError,
     ApiErrorBody,
@@ -158,7 +158,18 @@ def scenario(instance_id: str, perturbation_id: str) -> ScenarioResponse:
 
 @app.post("/copilot/ask", response_model=CopilotAskResponse)
 def copilot_ask(req: CopilotAskRequest) -> CopilotAskResponse:
+    import time as _time
+    request_id = telemetry.new_request_id()
+    started_at = _time.time()
     if "__" not in req.scenario_id:
+        telemetry.log_copilot_ask(
+            request_id=request_id,
+            scenario_id=req.scenario_id,
+            prompt=req.prompt,
+            result=None,
+            error_code="invalid_scenario_id",
+            started_at=started_at,
+        )
         raise HTTPException(
             status_code=400,
             detail={
@@ -172,6 +183,8 @@ def copilot_ask(req: CopilotAskRequest) -> CopilotAskResponse:
             },
         )
     instance_id, perturbation_id = req.scenario_id.split("__", 1)
+    result: Optional[dict[str, Any]] = None
+    error_code: Optional[str] = None
     try:
         result = copilot_service.ask(
             instance_id=instance_id,
@@ -181,6 +194,16 @@ def copilot_ask(req: CopilotAskRequest) -> CopilotAskResponse:
             family=req.family,
         )
     except copilot_service.UnknownSystemError as exc:
+        error_code = "unknown_system"
+        telemetry.log_copilot_ask(
+            request_id=request_id,
+            scenario_id=req.scenario_id,
+            prompt=req.prompt,
+            result=None,
+            error_code=error_code,
+            error_message=str(exc),
+            started_at=started_at,
+        )
         raise HTTPException(
             status_code=400,
             detail={
@@ -198,6 +221,16 @@ def copilot_ask(req: CopilotAskRequest) -> CopilotAskResponse:
             },
         ) from exc
     except scenario_store.ScenarioNotFound as exc:
+        error_code = "scenario_not_found"
+        telemetry.log_copilot_ask(
+            request_id=request_id,
+            scenario_id=req.scenario_id,
+            prompt=req.prompt,
+            result=None,
+            error_code=error_code,
+            error_message=str(exc),
+            started_at=started_at,
+        )
         raise HTTPException(
             status_code=404,
             detail={
@@ -208,6 +241,13 @@ def copilot_ask(req: CopilotAskRequest) -> CopilotAskResponse:
                 }
             },
         ) from exc
+    telemetry.log_copilot_ask(
+        request_id=request_id,
+        scenario_id=req.scenario_id,
+        prompt=req.prompt,
+        result=result,
+        started_at=started_at,
+    )
     return CopilotAskResponse(**result)
 
 

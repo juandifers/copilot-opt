@@ -1,0 +1,1 @@
+{"action":"nearest_neighbor","exception_class":"ActionFailure","instance_id":"X-n153-k22","message":"nearest_neighbor: customer 27 demand 196 exceeds capacity 144","perturbation_id":"DEM_4"}

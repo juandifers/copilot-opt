@@ -1,0 +1,8 @@
+{
+  "verdict": "Drift",
+  "n_scenarios": 5,
+  "n_drift_rows": 1,
+  "max_pyvrp_improvement_rel": 0.0047256334525104925,
+  "min_pyvrp_improvement_rel": 0.0,
+  "max_abs_ari_movement": 0.051901980230118605
+}

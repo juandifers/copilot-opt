@@ -1,0 +1,340 @@
+{
+  "n_rows": 924,
+  "n_off": 231,
+  "n_on": 693,
+  "off_table": {
+    "orientation": {
+      "ANSWERED_USEFULLY": 28,
+      "ANSWERED_PARTIALLY": 0,
+      "REFUSED_LEGITIMATELY": 0,
+      "REFUSED_INCORRECTLY": 16,
+      "CLASSIFIED_WRONG": 0,
+      "ERROR": 0
+    },
+    "specific_diagnosis": {
+      "ANSWERED_USEFULLY": 10,
+      "ANSWERED_PARTIALLY": 1,
+      "REFUSED_LEGITIMATELY": 0,
+      "REFUSED_INCORRECTLY": 2,
+      "CLASSIFIED_WRONG": 0,
+      "ERROR": 0
+    },
+    "prioritized_diagnosis": {
+      "ANSWERED_USEFULLY": 0,
+      "ANSWERED_PARTIALLY": 4,
+      "REFUSED_LEGITIMATELY": 0,
+      "REFUSED_INCORRECTLY": 20,
+      "CLASSIFIED_WRONG": 9,
+      "ERROR": 0
+    },
+    "comparison": {
+      "ANSWERED_USEFULLY": 26,
+      "ANSWERED_PARTIALLY": 0,
+      "REFUSED_LEGITIMATELY": 0,
+      "REFUSED_INCORRECTLY": 9,
+      "CLASSIFIED_WRONG": 0,
+      "ERROR": 0
+    },
+    "evaluation": {
+      "ANSWERED_USEFULLY": 16,
+      "ANSWERED_PARTIALLY": 0,
+      "REFUSED_LEGITIMATELY": 0,
+      "REFUSED_INCORRECTLY": 18,
+      "CLASSIFIED_WRONG": 11,
+      "ERROR": 0
+    },
+    "risk_fragility": {
+      "ANSWERED_USEFULLY": 0,
+      "ANSWERED_PARTIALLY": 1,
+      "REFUSED_LEGITIMATELY": 1,
+      "REFUSED_INCORRECTLY": 13,
+      "CLASSIFIED_WRONG": 0,
+      "ERROR": 0
+    },
+    "justification": {
+      "ANSWERED_USEFULLY": 2,
+      "ANSWERED_PARTIALLY": 1,
+      "REFUSED_LEGITIMATELY": 2,
+      "REFUSED_INCORRECTLY": 3,
+      "CLASSIFIED_WRONG": 5,
+      "ERROR": 0
+    },
+    "counterfactual": {
+      "ANSWERED_USEFULLY": 7,
+      "ANSWERED_PARTIALLY": 0,
+      "REFUSED_LEGITIMATELY": 0,
+      "REFUSED_INCORRECTLY": 0,
+      "CLASSIFIED_WRONG": 2,
+      "ERROR": 0
+    },
+    "action_recommendation": {
+      "ANSWERED_USEFULLY": 0,
+      "ANSWERED_PARTIALLY": 0,
+      "REFUSED_LEGITIMATELY": 3,
+      "REFUSED_INCORRECTLY": 4,
+      "CLASSIFIED_WRONG": 8,
+      "ERROR": 0
+    },
+    "adversarial_edge": {
+      "ANSWERED_USEFULLY": 0,
+      "ANSWERED_PARTIALLY": 0,
+      "REFUSED_LEGITIMATELY": 1,
+      "REFUSED_INCORRECTLY": 0,
+      "CLASSIFIED_WRONG": 8,
+      "ERROR": 0
+    }
+  },
+  "on_table": {
+    "orientation": {
+      "ANSWERED_USEFULLY": 103,
+      "ANSWERED_PARTIALLY": 17,
+      "REFUSED_LEGITIMATELY": 0,
+      "REFUSED_INCORRECTLY": 12,
+      "CLASSIFIED_WRONG": 0,
+      "ERROR": 0
+    },
+    "specific_diagnosis": {
+      "ANSWERED_USEFULLY": 39,
+      "ANSWERED_PARTIALLY": 0,
+      "REFUSED_LEGITIMATELY": 0,
+      "REFUSED_INCORRECTLY": 0,
+      "CLASSIFIED_WRONG": 0,
+      "ERROR": 0
+    },
+    "prioritized_diagnosis": {
+      "ANSWERED_USEFULLY": 0,
+      "ANSWERED_PARTIALLY": 12,
+      "REFUSED_LEGITIMATELY": 0,
+      "REFUSED_INCORRECTLY": 32,
+      "CLASSIFIED_WRONG": 55,
+      "ERROR": 0
+    },
+    "comparison": {
+      "ANSWERED_USEFULLY": 87,
+      "ANSWERED_PARTIALLY": 0,
+      "REFUSED_LEGITIMATELY": 0,
+      "REFUSED_INCORRECTLY": 18,
+      "CLASSIFIED_WRONG": 0,
+      "ERROR": 0
+    },
+    "evaluation": {
+      "ANSWERED_USEFULLY": 59,
+      "ANSWERED_PARTIALLY": 0,
+      "REFUSED_LEGITIMATELY": 0,
+      "REFUSED_INCORRECTLY": 43,
+      "CLASSIFIED_WRONG": 33,
+      "ERROR": 0
+    },
+    "risk_fragility": {
+      "ANSWERED_USEFULLY": 0,
+      "ANSWERED_PARTIALLY": 3,
+      "REFUSED_LEGITIMATELY": 3,
+      "REFUSED_INCORRECTLY": 18,
+      "CLASSIFIED_WRONG": 21,
+      "ERROR": 0
+    },
+    "justification": {
+      "ANSWERED_USEFULLY": 11,
+      "ANSWERED_PARTIALLY": 2,
+      "REFUSED_LEGITIMATELY": 6,
+      "REFUSED_INCORRECTLY": 2,
+      "CLASSIFIED_WRONG": 18,
+      "ERROR": 0
+    },
+    "counterfactual": {
+      "ANSWERED_USEFULLY": 15,
+      "ANSWERED_PARTIALLY": 0,
+      "REFUSED_LEGITIMATELY": 0,
+      "REFUSED_INCORRECTLY": 0,
+      "CLASSIFIED_WRONG": 12,
+      "ERROR": 0
+    },
+    "action_recommendation": {
+      "ANSWERED_USEFULLY": 0,
+      "ANSWERED_PARTIALLY": 0,
+      "REFUSED_LEGITIMATELY": 9,
+      "REFUSED_INCORRECTLY": 6,
+      "CLASSIFIED_WRONG": 30,
+      "ERROR": 0
+    },
+    "adversarial_edge": {
+      "ANSWERED_USEFULLY": 0,
+      "ANSWERED_PARTIALLY": 0,
+      "REFUSED_LEGITIMATELY": 20,
+      "REFUSED_INCORRECTLY": 0,
+      "CLASSIFIED_WRONG": 7,
+      "ERROR": 0
+    }
+  },
+  "off_percent": {
+    "orientation": {
+      "ANSWERED_USEFULLY": 63.63636363636363,
+      "ANSWERED_PARTIALLY": 0.0,
+      "REFUSED_LEGITIMATELY": 0.0,
+      "REFUSED_INCORRECTLY": 36.36363636363637,
+      "CLASSIFIED_WRONG": 0.0,
+      "ERROR": 0.0
+    },
+    "specific_diagnosis": {
+      "ANSWERED_USEFULLY": 76.92307692307693,
+      "ANSWERED_PARTIALLY": 7.6923076923076925,
+      "REFUSED_LEGITIMATELY": 0.0,
+      "REFUSED_INCORRECTLY": 15.384615384615385,
+      "CLASSIFIED_WRONG": 0.0,
+      "ERROR": 0.0
+    },
+    "prioritized_diagnosis": {
+      "ANSWERED_USEFULLY": 0.0,
+      "ANSWERED_PARTIALLY": 12.121212121212121,
+      "REFUSED_LEGITIMATELY": 0.0,
+      "REFUSED_INCORRECTLY": 60.60606060606061,
+      "CLASSIFIED_WRONG": 27.27272727272727,
+      "ERROR": 0.0
+    },
+    "comparison": {
+      "ANSWERED_USEFULLY": 74.28571428571429,
+      "ANSWERED_PARTIALLY": 0.0,
+      "REFUSED_LEGITIMATELY": 0.0,
+      "REFUSED_INCORRECTLY": 25.71428571428571,
+      "CLASSIFIED_WRONG": 0.0,
+      "ERROR": 0.0
+    },
+    "evaluation": {
+      "ANSWERED_USEFULLY": 35.55555555555556,
+      "ANSWERED_PARTIALLY": 0.0,
+      "REFUSED_LEGITIMATELY": 0.0,
+      "REFUSED_INCORRECTLY": 40.0,
+      "CLASSIFIED_WRONG": 24.444444444444443,
+      "ERROR": 0.0
+    },
+    "risk_fragility": {
+      "ANSWERED_USEFULLY": 0.0,
+      "ANSWERED_PARTIALLY": 6.666666666666667,
+      "REFUSED_LEGITIMATELY": 6.666666666666667,
+      "REFUSED_INCORRECTLY": 86.66666666666667,
+      "CLASSIFIED_WRONG": 0.0,
+      "ERROR": 0.0
+    },
+    "justification": {
+      "ANSWERED_USEFULLY": 15.384615384615385,
+      "ANSWERED_PARTIALLY": 7.6923076923076925,
+      "REFUSED_LEGITIMATELY": 15.384615384615385,
+      "REFUSED_INCORRECTLY": 23.076923076923077,
+      "CLASSIFIED_WRONG": 38.46153846153847,
+      "ERROR": 0.0
+    },
+    "counterfactual": {
+      "ANSWERED_USEFULLY": 77.77777777777779,
+      "ANSWERED_PARTIALLY": 0.0,
+      "REFUSED_LEGITIMATELY": 0.0,
+      "REFUSED_INCORRECTLY": 0.0,
+      "CLASSIFIED_WRONG": 22.22222222222222,
+      "ERROR": 0.0
+    },
+    "action_recommendation": {
+      "ANSWERED_USEFULLY": 0.0,
+      "ANSWERED_PARTIALLY": 0.0,
+      "REFUSED_LEGITIMATELY": 20.0,
+      "REFUSED_INCORRECTLY": 26.666666666666668,
+      "CLASSIFIED_WRONG": 53.333333333333336,
+      "ERROR": 0.0
+    },
+    "adversarial_edge": {
+      "ANSWERED_USEFULLY": 0.0,
+      "ANSWERED_PARTIALLY": 0.0,
+      "REFUSED_LEGITIMATELY": 11.11111111111111,
+      "REFUSED_INCORRECTLY": 0.0,
+      "CLASSIFIED_WRONG": 88.88888888888889,
+      "ERROR": 0.0
+    }
+  },
+  "on_percent": {
+    "orientation": {
+      "ANSWERED_USEFULLY": 78.03030303030303,
+      "ANSWERED_PARTIALLY": 12.878787878787879,
+      "REFUSED_LEGITIMATELY": 0.0,
+      "REFUSED_INCORRECTLY": 9.090909090909092,
+      "CLASSIFIED_WRONG": 0.0,
+      "ERROR": 0.0
+    },
+    "specific_diagnosis": {
+      "ANSWERED_USEFULLY": 100.0,
+      "ANSWERED_PARTIALLY": 0.0,
+      "REFUSED_LEGITIMATELY": 0.0,
+      "REFUSED_INCORRECTLY": 0.0,
+      "CLASSIFIED_WRONG": 0.0,
+      "ERROR": 0.0
+    },
+    "prioritized_diagnosis": {
+      "ANSWERED_USEFULLY": 0.0,
+      "ANSWERED_PARTIALLY": 12.121212121212121,
+      "REFUSED_LEGITIMATELY": 0.0,
+      "REFUSED_INCORRECTLY": 32.323232323232325,
+      "CLASSIFIED_WRONG": 55.55555555555556,
+      "ERROR": 0.0
+    },
+    "comparison": {
+      "ANSWERED_USEFULLY": 82.85714285714286,
+      "ANSWERED_PARTIALLY": 0.0,
+      "REFUSED_LEGITIMATELY": 0.0,
+      "REFUSED_INCORRECTLY": 17.142857142857142,
+      "CLASSIFIED_WRONG": 0.0,
+      "ERROR": 0.0
+    },
+    "evaluation": {
+      "ANSWERED_USEFULLY": 43.7037037037037,
+      "ANSWERED_PARTIALLY": 0.0,
+      "REFUSED_LEGITIMATELY": 0.0,
+      "REFUSED_INCORRECTLY": 31.851851851851855,
+      "CLASSIFIED_WRONG": 24.444444444444443,
+      "ERROR": 0.0
+    },
+    "risk_fragility": {
+      "ANSWERED_USEFULLY": 0.0,
+      "ANSWERED_PARTIALLY": 6.666666666666667,
+      "REFUSED_LEGITIMATELY": 6.666666666666667,
+      "REFUSED_INCORRECTLY": 40.0,
+      "CLASSIFIED_WRONG": 46.666666666666664,
+      "ERROR": 0.0
+    },
+    "justification": {
+      "ANSWERED_USEFULLY": 28.205128205128204,
+      "ANSWERED_PARTIALLY": 5.128205128205128,
+      "REFUSED_LEGITIMATELY": 15.384615384615385,
+      "REFUSED_INCORRECTLY": 5.128205128205128,
+      "CLASSIFIED_WRONG": 46.15384615384615,
+      "ERROR": 0.0
+    },
+    "counterfactual": {
+      "ANSWERED_USEFULLY": 55.55555555555556,
+      "ANSWERED_PARTIALLY": 0.0,
+      "REFUSED_LEGITIMATELY": 0.0,
+      "REFUSED_INCORRECTLY": 0.0,
+      "CLASSIFIED_WRONG": 44.44444444444444,
+      "ERROR": 0.0
+    },
+    "action_recommendation": {
+      "ANSWERED_USEFULLY": 0.0,
+      "ANSWERED_PARTIALLY": 0.0,
+      "REFUSED_LEGITIMATELY": 20.0,
+      "REFUSED_INCORRECTLY": 13.333333333333334,
+      "CLASSIFIED_WRONG": 66.66666666666666,
+      "ERROR": 0.0
+    },
+    "adversarial_edge": {
+      "ANSWERED_USEFULLY": 0.0,
+      "ANSWERED_PARTIALLY": 0.0,
+      "REFUSED_LEGITIMATELY": 74.07407407407408,
+      "REFUSED_INCORRECTLY": 0.0,
+      "CLASSIFIED_WRONG": 25.925925925925924,
+      "ERROR": 0.0
+    }
+  },
+  "deltas_count": 62,
+  "llm_helps": 24,
+  "llm_hurts": 3,
+  "variance_unstable_intent": 55,
+  "variance_unstable_bucket": 33,
+  "variance_total": 231,
+  "low_confidence_count": 439
+}

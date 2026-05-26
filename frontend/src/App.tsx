@@ -15,9 +15,7 @@ import type {
   InstanceSummary,
   ScenarioResponse,
 } from './api/types';
-import { AvailableFieldsStrip } from './components/AvailableFieldsStrip';
 import { CopilotPanel } from './components/CopilotPanel';
-import { ImpactStrip } from './components/ImpactStrip';
 import { MapPanel } from './components/MapPanel';
 import { SchedulePanel } from './components/SchedulePanel';
 import { TablesPanel } from './components/TablesPanel';
@@ -111,9 +109,9 @@ function loadCollapsed(): Collapsed {
 
 const PANEL_HEAD_H = 32;
 const COPILOT_HEAD_W = 36;
-const MIN_MAP_H = 60;
-const MIN_SCHEDULE_H = 160;
-const MIN_TABLES_H = 80;
+const MIN_MAP_W = 40;
+const MIN_SCHEDULE_W = 60;
+const MIN_TABLES_W = 40;
 const MIN_COPILOT_W = 280;
 const MIN_MAIN_LEFT_W = 480;
 
@@ -235,11 +233,23 @@ export default function App() {
     setCollapsed((c) => ({ ...c, [key]: !c[key] }));
   }
 
+  function maximizePanel(key: 'map' | 'schedule' | 'tables') {
+    const others = (['map', 'schedule', 'tables'] as const).filter((k) => k !== key);
+    const allOthersCollapsed = others.every((k) => collapsed[k]);
+    if (allOthersCollapsed && !collapsed[key]) {
+      setCollapsed((c) => ({ ...c, map: false, schedule: false, tables: false }));
+    } else {
+      const next: Partial<Collapsed> = { [key]: false };
+      for (const k of others) next[k] = true;
+      setCollapsed((c) => ({ ...c, ...next }));
+    }
+  }
+
   function resizeMapVsSchedule(dy: number) {
     setLayout((l) => {
       const nm = l.mapH + dy;
       const ns = l.scheduleH - dy;
-      if (nm < MIN_MAP_H || ns < MIN_SCHEDULE_H) return l;
+      if (nm < MIN_MAP_W || ns < MIN_SCHEDULE_W) return l;
       return { ...l, mapH: nm, scheduleH: ns };
     });
   }
@@ -247,7 +257,7 @@ export default function App() {
     setLayout((l) => {
       const ns = l.scheduleH + dy;
       const nt = l.tablesH - dy;
-      if (ns < MIN_SCHEDULE_H || nt < MIN_TABLES_H) return l;
+      if (ns < MIN_SCHEDULE_W || nt < MIN_TABLES_W) return l;
       return { ...l, scheduleH: ns, tablesH: nt };
     });
   }
@@ -349,10 +359,11 @@ export default function App() {
   const shape = inferShape(scenario);
   const isOBJ = shape === 'OBJ';
 
-  // Effective track sizes, accounting for collapsed panels.
-  const mapH = collapsed.map ? PANEL_HEAD_H : layout.mapH;
-  const scheduleH = collapsed.schedule ? PANEL_HEAD_H : layout.scheduleH;
-  const tablesH = collapsed.tables ? PANEL_HEAD_H : layout.tablesH;
+  // Effective track sizes: collapsed panels get a fixed px header,
+  // expanded panels share remaining space via fr weights.
+  const mapTrack = collapsed.map ? `${PANEL_HEAD_H}px` : `${layout.mapH}fr`;
+  const scheduleTrack = collapsed.schedule ? `${PANEL_HEAD_H}px` : `${layout.scheduleH}fr`;
+  const tablesTrack = collapsed.tables ? `${PANEL_HEAD_H}px` : `${layout.tablesH}fr`;
   const copilotW = collapsed.copilot ? COPILOT_HEAD_W : layout.copilotW;
 
   // Hide the resizer track when either neighbor is collapsed.
@@ -379,14 +390,12 @@ export default function App() {
         <div
           className="main-left"
           style={{
-            gridTemplateRows: `32px minmax(80px, max-content) ${mapH}px ${mapScheduleResizerH}px ${scheduleH}px ${scheduleTablesResizerH}px ${tablesH}px`,
+            gridTemplateRows: `${mapTrack} ${mapScheduleResizerH}px ${scheduleTrack} ${scheduleTablesResizerH}px ${tablesTrack}`,
           }}
         >
-          <AvailableFieldsStrip scenario={scenario} />
-          <ImpactStrip scenario={scenario} diffData={diffData} />
 
           <div className={'panel' + (collapsed.map ? ' collapsed' : '')}>
-            <div className="panel-head">
+            <div className="panel-head" onDoubleClick={() => maximizePanel('map')}>
               <span className="title">
                 {isOBJ ? 'Solution · Summary' : 'Network · Map'}
               </span>
@@ -425,7 +434,7 @@ export default function App() {
           {(collapsed.map || collapsed.schedule) && <div />}
 
           <div className={'panel' + (collapsed.schedule ? ' collapsed' : '')}>
-            <div className="panel-head">
+            <div className="panel-head" onDoubleClick={() => maximizePanel('schedule')}>
               <span className="title">Schedule · Gantt</span>
               <span style={{ color: 'var(--text-faint)' }}>solomon-minutes</span>
               <span className="spacer" />
@@ -524,6 +533,7 @@ export default function App() {
               onLoadDiff={loadDiff}
               collapsed={collapsed.tables}
               onToggleCollapse={() => toggleCollapse('tables')}
+              onMaximize={() => maximizePanel('tables')}
               tab={tablesTab}
               setTab={setTablesTab}
             />

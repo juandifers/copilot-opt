@@ -1,0 +1,25 @@
+{"case_id":"LP-P-01","class":"positive","scenario_id":"C105__TT_4","prompt":"How tardy is customer 5?","expected_aspect":"timing","expected_behavior":"partial_answer_with_warning","note":"customer entity present, no lateness keyword -> timing default"}
+{"case_id":"LP-P-02","class":"positive","scenario_id":"C105__TT_4","prompt":"What time does customer 8 arrive?","expected_aspect":"timing","expected_behavior":"partial_answer_with_warning"}
+{"case_id":"LP-P-03","class":"positive","scenario_id":"C105__TT_4","prompt":"What's customer 8's arrival?","expected_aspect":"timing","expected_behavior":"partial_answer_with_warning"}
+{"case_id":"LP-P-04","class":"positive","scenario_id":"C105__TT_4","prompt":"When is customer 8 served?","expected_aspect":"timing","expected_behavior":"partial_answer_with_warning"}
+{"case_id":"LP-P-05","class":"positive","scenario_id":"C105__TT_4","prompt":"What's the timing of route 2?","expected_aspect":"timing","expected_behavior":"partial_answer_with_warning"}
+{"case_id":"LP-P-06","class":"positive","scenario_id":"C105__TT_4","prompt":"What's customer 15's schedule looking like?","expected_aspect":"timing","expected_behavior":"partial_answer_with_warning"}
+{"case_id":"LP-P-07","class":"positive","scenario_id":"C105__TT_4","prompt":"Walk me through customer 8's day","expected_aspect":"timing","expected_behavior":"partial_answer_with_warning"}
+{"case_id":"LP-P-08","class":"positive","scenario_id":"C105__TT_4","prompt":"Status of customer 15?","expected_aspect":"timing","expected_behavior":"partial_answer_with_warning"}
+{"case_id":"LP-P-09","class":"positive","scenario_id":"C105__TT_4","prompt":"Anything behind?","expected_aspect":"lateness","expected_behavior":"partial_answer_with_warning"}
+{"case_id":"LP-P-10","class":"positive","scenario_id":"C105__TT_4","prompt":"What's the schedule for route 3?","expected_aspect":"timing","expected_behavior":"partial_answer_with_warning"}
+{"case_id":"LP-P-11","class":"positive","scenario_id":"C105__TT_4","prompt":"Tell me about customer 22","expected_aspect":"timing","expected_behavior":"partial_answer_with_warning"}
+{"case_id":"LP-P-12","class":"positive","scenario_id":"C105__TT_4","prompt":"What's happening with route 5?","expected_aspect":"timing","expected_behavior":"partial_answer_with_warning"}
+{"case_id":"LP-P-13","class":"positive","scenario_id":"C105__TT_4","prompt":"Customer 30 — how's it going?","expected_aspect":"timing","expected_behavior":"partial_answer_with_warning"}
+{"case_id":"LP-P-14","class":"positive","scenario_id":"C105__TT_4","prompt":"Run me through route 4","expected_aspect":"timing","expected_behavior":"partial_answer_with_warning"}
+{"case_id":"LP-P-15","class":"positive","scenario_id":"C105__TT_4","prompt":"What's happening with customer 50?","expected_aspect":"timing","expected_behavior":"partial_answer_with_warning"}
+{"case_id":"LP-N-01","class":"negative","scenario_id":"C105__TT_4","prompt":"How late is customer 9999?","expected_behavior":"useful_refusal","expected_warning":"false_premise_detected","note":"false premise on lateness_summary (D1 catches)"}
+{"case_id":"LP-N-02","class":"negative","scenario_id":"C105__TT_4","prompt":"What time does customer 9999 arrive?","expected_no_aspect":true,"note":"false premise should suppress aspect dispatch even when D1 returns unknown"}
+{"case_id":"LP-N-03","class":"negative","scenario_id":"C105__TT_4","prompt":"What's the weather?","expected_behavior":"useful_refusal","note":"unknown intent, no entity, no aspect keyword"}
+{"case_id":"LP-N-04","class":"negative","scenario_id":"C105__TT_4","prompt":"Compare this to the baseline","expected_behavior":"useful_refusal","note":"comparison without baseline payload"}
+{"case_id":"LP-N-05","class":"negative","scenario_id":"C103__OC_1","prompt":"How tardy is customer 5?","expected_no_aspect":true,"note":"OBJ scenario must not aspect-dispatch even if prompt has entity+timing keywords"}
+{"case_id":"LP-N-06","class":"negative","scenario_id":"C105__TT_4","prompt":"What time does route 9999 finish?","expected_behavior":"useful_refusal","expected_warning":"false_premise_detected","note":"false premise on route_end_time"}
+{"case_id":"LP-R-01","class":"regression","scenario_id":"C105__TT_4","prompt":"How many late customers are there?","expected_intent":"lateness_summary","expected_behavior":"direct_answer","note":"D1 SCHEDULE branch catches 'late'"}
+{"case_id":"LP-R-02","class":"regression","scenario_id":"C105__TT_4","prompt":"When does route 3 finish?","expected_intent":"route_end_time","expected_behavior":"direct_answer_with_warning","note":"D1 catches 'finish' + 'route'"}
+{"case_id":"LP-R-03","class":"regression","scenario_id":"C105__TT_4","prompt":"When does the driver reach customer 5?","expected_intent":"customer_arrival","expected_behavior":"direct_answer","note":"D1 catches 'reach customer' pattern"}
+{"case_id":"LP-R-04","class":"regression","scenario_id":"C105__TT_4","prompt":"Which customers are late?","expected_intent":"lateness_summary","expected_behavior":"direct_answer","note":"D1 catches 'late'"}

@@ -550,6 +550,28 @@ body {
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
+}
+.map-reset-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  cursor: pointer;
+  opacity: 0.8;
+}
+.map-reset-btn:hover {
+  opacity: 1;
+  border-color: var(--accent);
+  color: var(--text);
 }
 .map-tools {
   position: absolute;
@@ -1656,4 +1678,43 @@ body.light .tb-sys .sys-chip.active { color: #fff; }
   border-radius: 50%;
   background: var(--text-faint);
   flex: 0 0 4px;
+}
+
+/* ---------- Aspectual fallback rendering ---------- */
+.aspect-header {
+  font-style: italic;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.aspect-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border-left: 2px solid var(--accent);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+.aspect-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  line-height: 1.45;
+}
+.aspect-line .aspect-key {
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+}
+.aspect-line .aspect-val {
+  color: var(--text);
+  text-align: right;
+}
+.aspect-footer {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  font-style: italic;
 }

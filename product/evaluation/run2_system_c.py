@@ -147,7 +147,11 @@ def run_system_c_on_case(
         intent=intent,
         payload=augmented,
         generator_record=generator_record,
-        row={"prompt_text": case.prompt_text},
+        row={
+            "prompt_text": case.prompt_text,
+            "family": case.family or "",
+            "perturbation_id": getattr(case, "perturbation_id", "") or "",
+        },
     )
 
     # `build_warnings` was authored against Run 1 prompt IDs; for

@@ -1,0 +1,53 @@
+{
+  "instances": [
+    "C101",
+    "C104",
+    "C105",
+    "C203",
+    "C204",
+    "C208",
+    "R101",
+    "R102",
+    "R103",
+    "R104",
+    "R105",
+    "R202",
+    "R206",
+    "R207",
+    "RC101",
+    "RC103",
+    "RC104",
+    "RC201",
+    "RC202",
+    "RC207"
+  ],
+  "perturbation_ids": [
+    "TT_1",
+    "TT_2",
+    "TT_3",
+    "TT_4",
+    "TW_1",
+    "TW_2",
+    "TW_3",
+    "TW_4"
+  ],
+  "seeds": [
+    1,
+    2,
+    3
+  ],
+  "sample_seed": 42,
+  "n_cells": 160,
+  "n_assemble_cells": 160,
+  "n_wide_rows": 640,
+  "n_long_rows": 2560,
+  "n_cached_rows": 0,
+  "phase_baselines_seconds": 0.2508355420141015,
+  "phase_references_seconds": 9602.65352349999,
+  "phase_pyvrp10s_seconds": 270.6286223750212,
+  "phase_assemble_seconds": 20.44325220902101,
+  "failed_ref_keys": [],
+  "failed_ref_cells": [],
+  "failed_pyvrp10s_cells": [],
+  "failed_action_keys": []
+}
