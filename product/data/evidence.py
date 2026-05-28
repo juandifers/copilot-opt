@@ -1439,6 +1439,13 @@ def build_evidence_items(
 def infer_visual_actions(
     intent: str, evidence_items: list[EvidenceItem]
 ) -> list[VisualAction]:
+    """Map (intent, evidence) -> deterministic highlight hints.
+
+    Implements docs/highlight_contract.md. The shape of every branch is:
+    set_lens first, then one or more highlight_* actions (possibly many for
+    multi-target intents), then focus_panel last. Refusal / unknown returns
+    [] so the frontend leaves the operator's lens alone.
+    """
     actions: list[VisualAction] = []
 
     def _route_idx_from_path(path: str) -> Optional[int]:
@@ -1449,14 +1456,38 @@ def infer_visual_actions(
         m = re.search(r"customer_id=(\d+)", path)
         return int(m.group(1)) if m else None
 
-    if intent in ("single_customer_route_membership", "same_route_boolean"):
+    def _lens(mode: str) -> VisualAction:
+        return VisualAction(kind="set_lens", target={"mode": mode})
+
+    def _focus(panel: str) -> VisualAction:
+        return VisualAction(kind="focus_panel", target={"panel": panel})
+
+    def _distinct_route_highlights() -> list[VisualAction]:
+        seen: set[int] = set()
+        out: list[VisualAction] = []
         for it in evidence_items:
             ridx = _route_idx_from_path(it.field_path)
-            if ridx is not None:
-                actions.append(VisualAction(kind="highlight_route", target={"route_idx": ridx}))
-        # Highlight only the queried customer(s), not the entire route roster.
-        # The `supports` line carries the queried-customer set in the form
-        # "customer [42] on this route".
+            if ridx is not None and ridx not in seen:
+                seen.add(ridx)
+                out.append(VisualAction(kind="highlight_route", target={"route_idx": ridx}))
+        return out
+
+    def _distinct_customer_highlights() -> list[VisualAction]:
+        seen: set[int] = set()
+        out: list[VisualAction] = []
+        for it in evidence_items:
+            cid = _customer_id_from_path(it.field_path)
+            if cid is not None and cid not in seen:
+                seen.add(cid)
+                out.append(VisualAction(kind="highlight_customer", target={"customer_id": cid}))
+        return out
+
+    if intent in ("single_customer_route_membership", "same_route_boolean"):
+        actions.append(_lens("route"))
+        actions.extend(_distinct_route_highlights())
+        # The `supports` line carries the queried-customer set as
+        # "customer [42] on this route" — highlight only those, not the
+        # whole route roster.
         for it in evidence_items:
             m = re.search(r"customer \[([^\]]+)\] on this route", it.supports)
             if m:
@@ -1467,24 +1498,104 @@ def infer_visual_actions(
                             VisualAction(kind="highlight_customer", target={"customer_id": int(raw)})
                         )
                 break
+        actions.append(_focus("map"))
     elif intent == "customer_arrival":
-        for it in evidence_items:
-            cid = _customer_id_from_path(it.field_path)
-            if cid is not None:
-                actions.append(VisualAction(kind="highlight_customer", target={"customer_id": cid}))
+        actions.append(_lens("lateness"))
+        actions.extend(_distinct_customer_highlights())
+        # Customer-arrival evidence also carries the host route in the
+        # field_path; surface it so the map can frame the right route.
+        actions.extend(_distinct_route_highlights())
         actions.append(VisualAction(kind="show_schedule_row"))
+        actions.append(_focus("schedule"))
     elif intent == "route_end_time":
-        for it in evidence_items:
-            ridx = _route_idx_from_path(it.field_path)
-            if ridx is not None:
-                actions.append(VisualAction(kind="highlight_route", target={"route_idx": ridx}))
+        actions.append(_lens("lateness"))
+        actions.extend(_distinct_route_highlights())
         actions.append(VisualAction(kind="show_route_end_time"))
+        actions.append(_focus("schedule"))
     elif intent == "feasibility_status":
+        actions.append(_lens("slack"))
+        # Tight stops (if surfaced) carry route_idx in their field_path.
+        actions.extend(_distinct_route_highlights())
         actions.append(VisualAction(kind="show_feasibility_card"))
+        actions.append(_focus("schedule"))
     elif intent in ("objective_value", "objective_delta"):
+        actions.append(_lens("route"))
+        actions.append(VisualAction(kind="highlight_summary"))
         actions.append(VisualAction(kind="show_objective_card"))
+        actions.append(_focus("impact"))
     elif intent == "lateness_summary":
+        actions.append(_lens("lateness"))
+        # One highlight_customer per late stop. lateness_summary surfaces the
+        # late set as a list value under `late_customer_ids`; per-customer
+        # field paths aren't created. Read the list value directly.
+        seen_cids: set[int] = set()
+        for it in evidence_items:
+            if it.field_path == "late_customer_ids" and isinstance(it.value, list):
+                for cid in it.value:
+                    if isinstance(cid, int) and cid not in seen_cids:
+                        seen_cids.add(cid)
+                        actions.append(
+                            VisualAction(kind="highlight_customer", target={"customer_id": cid})
+                        )
+        # Some payloads also surface per-customer paths (aspectual lateness);
+        # union those in if they exist.
+        for va in _distinct_customer_highlights():
+            cid = va.target.get("customer_id")
+            if isinstance(cid, int) and cid not in seen_cids:
+                seen_cids.add(cid)
+                actions.append(va)
         actions.append(VisualAction(kind="show_lateness_summary"))
+        actions.append(_focus("schedule"))
     elif intent == "route_count":
+        actions.append(_lens("route"))
+        actions.extend(_distinct_route_highlights())
         actions.append(VisualAction(kind="show_route_count"))
+        actions.append(_focus("tables"))
+    elif intent == "full_route_listing":
+        actions.append(_lens("route"))
+        actions.extend(_distinct_route_highlights())
+        actions.append(_focus("tables"))
+    elif intent == "new_customer_assignment":
+        actions.append(_lens("route"))
+        actions.extend(_distinct_customer_highlights())
+        actions.extend(_distinct_route_highlights())
+        actions.append(_focus("map"))
+    elif intent == "before_after_comparison":
+        actions.append(_lens("route"))
+        actions.extend(_distinct_route_highlights())
+        actions.extend(_distinct_customer_highlights())
+        actions.append(_focus("impact"))
+    elif intent in ("perturbation_impact_summary", "route_impact_summary"):
+        actions.append(_lens("route"))
+        actions.extend(_distinct_route_highlights())
+        actions.append(_focus("impact"))
+    elif intent in ("scenario_summary", "solution_summary", "perturbation_summary"):
+        actions.append(_lens("route"))
+        actions.append(VisualAction(kind="highlight_summary"))
+        actions.append(_focus("impact"))
+    elif intent == "what_to_watch":
+        actions.append(_lens("slack"))
+        # At-risk stops: parse both customer and route hints from evidence paths.
+        actions.extend(_distinct_customer_highlights())
+        actions.extend(_distinct_route_highlights())
+        actions.append(_focus("schedule"))
+    elif intent == "evaluate_plan_acceptability":
+        actions.append(_lens("route"))
+        actions.append(VisualAction(kind="highlight_summary"))
+        actions.append(_focus("impact"))
+    elif intent == "evaluate_dimension_acceptability":
+        # The dimension under evaluation is hinted by the first evidence item's
+        # `supports` text. Default to slack (feasibility) unless time/lateness
+        # is named.
+        lens_mode = "slack"
+        if evidence_items:
+            supports_blob = " ".join(it.supports or "" for it in evidence_items).lower()
+            if "late" in supports_blob or "time window" in supports_blob or "arrival" in supports_blob:
+                lens_mode = "lateness"
+        actions.append(_lens(lens_mode))
+        actions.extend(_distinct_customer_highlights())
+        actions.extend(_distinct_route_highlights())
+        actions.append(_focus("schedule"))
+    # refusal_or_insufficient_payload / unknown: return [] so the frontend
+    # keeps the operator's current lens and surfaces the available-fields hint.
     return actions

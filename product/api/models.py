@@ -10,6 +10,8 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from product.copilot.contracts import VisualAction
+
 
 # ---------------------------------------------------------------------------
 # Error envelope
@@ -271,6 +273,11 @@ class CopilotAskResponse(BaseModel):
     # empty list when no action is recommended. The only currently
     # emitted action is ``type == "recompute"``.
     ui_actions: list[UiAction] = Field(default_factory=list)
+    # Highlight contract: deterministic (intent, evidence) -> visual hints.
+    # Empty list for refusal_or_insufficient_payload / unknown — the frontend
+    # leaves the operator's lens alone in that case. See
+    # docs/highlight_contract.md for the full intent table.
+    visual_actions: list[VisualAction] = Field(default_factory=list)
     # D-Final: semantic adapter metadata. Null for all other systems.
     semantic_adapter: Optional[SemanticAdapterMetadata] = None
 
