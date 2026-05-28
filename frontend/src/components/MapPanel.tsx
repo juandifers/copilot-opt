@@ -9,13 +9,14 @@ import type {
   Route,
   ScenarioResponse,
 } from '../api/types';
-import type { Selection } from '../selection';
+import { EMPTY_HIGHLIGHTS, type Highlights, type Selection } from '../selection';
 import { lensColor, type LensMode } from '../lens';
 
 interface Props {
   scenario: ScenarioResponse | null;
   selection: Selection;
   setSelection: (s: Selection) => void;
+  highlights?: Highlights;
   lens: LensMode;
   diffData: DiffResponse | null;
 }
@@ -89,7 +90,14 @@ interface Hover {
   py: number;
 }
 
-export function MapPanel({ scenario, selection, setSelection, lens, diffData }: Props) {
+export function MapPanel({
+  scenario,
+  selection,
+  setSelection,
+  highlights = EMPTY_HIGHLIGHTS,
+  lens,
+  diffData,
+}: Props) {
   const [hover, setHover] = useState<Hover | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState<{ w: number; h: number }>({ w: 800, h: 400 });
@@ -118,8 +126,10 @@ export function MapPanel({ scenario, selection, setSelection, lens, diffData }: 
   zoomRef.current = userZoom;
 
   const prevSelection = useRef(selection);
-  if (prevSelection.current !== selection) {
+  const prevHighlights = useRef(highlights);
+  if (prevSelection.current !== selection || prevHighlights.current !== highlights) {
     prevSelection.current = selection;
+    prevHighlights.current = highlights;
     if (userPan.x !== 0 || userPan.y !== 0 || userZoom !== 1) {
       setUserPan({ x: 0, y: 0 });
       setUserZoom(1);
@@ -149,7 +159,13 @@ export function MapPanel({ scenario, selection, setSelection, lens, diffData }: 
   const baseViewBox = useMemo(() => {
     const fullVB = `0 0 ${W} ${H}`;
     if (!scenario || customers.length === 0) return fullVB;
-    if (selection.kind === 'none' || selection.kind === 'summary') return fullVB;
+    const hasHL = highlights.routes.size > 0 || highlights.customers.size > 0;
+    if (
+      (selection.kind === 'none' || selection.kind === 'summary') &&
+      !hasHL
+    ) {
+      return fullVB;
+    }
     let pts: Array<{ x: number; y: number }> = [];
     if (selection.kind === 'route') {
       const r = routes.find((rr) => rr.route_idx === selection.idx);
@@ -169,6 +185,24 @@ export function MapPanel({ scenario, selection, setSelection, lens, diffData }: 
           const cc = customersById.get(cid);
           if (cc) pts.push({ x: cc.x, y: cc.y });
         }
+      }
+    }
+    // Multi-target highlights: union every highlighted route's stops and every
+    // highlighted customer into the framing set so the map pans to the
+    // bounding box of everything the copilot just lit up.
+    if (hasHL) {
+      if (pts.length === 0) pts.push({ x: depot.x, y: depot.y });
+      for (const ridx of highlights.routes) {
+        const r = routes.find((rr) => rr.route_idx === ridx);
+        if (!r) continue;
+        for (const cid of r.customer_ids) {
+          const c = customersById.get(cid);
+          if (c) pts.push({ x: c.x, y: c.y });
+        }
+      }
+      for (const cid of highlights.customers) {
+        const c = customersById.get(cid);
+        if (c) pts.push({ x: c.x, y: c.y });
       }
     }
     if (pts.length < 2) return fullVB;
@@ -201,7 +235,7 @@ export function MapPanel({ scenario, selection, setSelection, lens, diffData }: 
     const svgMinX = vbMinX + PAD;
     const svgMinY = H - (vbMinY + vbH + PAD);
     return `${svgMinX} ${svgMinY} ${vbW} ${vbH}`;
-  }, [scenario, selection, customers, depot, bound, W, H, routes, routeOf, customersById, containerSize]);
+  }, [scenario, selection, highlights, customers, depot, bound, W, H, routes, routeOf, customersById, containerSize]);
 
   // Apply user pan/zoom on top of the base viewBox.
   const viewBox = useMemo(() => {
@@ -278,7 +312,9 @@ export function MapPanel({ scenario, selection, setSelection, lens, diffData }: 
   const vy = (y: number) => H - (y + PAD); // y-flip for chart orientation
 
   const colorFor = (idx: number) => ROUTE_COLORS[idx % ROUTE_COLORS.length];
-  const anySel = selection.kind !== 'none';
+  const hasHighlights =
+    highlights.routes.size > 0 || highlights.customers.size > 0;
+  const anySel = selection.kind !== 'none' || hasHighlights;
 
   // Diff overlay sets
   const changedCustomerIds = new Set<number>();
@@ -294,8 +330,12 @@ export function MapPanel({ scenario, selection, setSelection, lens, diffData }: 
   const diffActive = diffData != null && (changedCustomerIds.size > 0 || changedRouteLabels.size > 0);
 
   function isRouteSelected(r: RouteView): boolean {
-    if (selection.kind === 'route') return selection.idx === r.route_idx;
-    if (selection.kind === 'customer') return r.customer_ids.includes(selection.id);
+    if (selection.kind === 'route' && selection.idx === r.route_idx) return true;
+    if (selection.kind === 'customer' && r.customer_ids.includes(selection.id)) return true;
+    if (highlights.routes.has(r.route_idx)) return true;
+    for (const cid of r.customer_ids) {
+      if (highlights.customers.has(cid)) return true;
+    }
     return false;
   }
 
@@ -413,7 +453,9 @@ export function MapPanel({ scenario, selection, setSelection, lens, diffData }: 
           const route = routeOf.get(c.customer_id);
           const sel =
             (selection.kind === 'customer' && selection.id === c.customer_id) ||
-            (selection.kind === 'route' && route?.route_idx === selection.idx);
+            (selection.kind === 'route' && route?.route_idx === selection.idx) ||
+            highlights.customers.has(c.customer_id) ||
+            (route != null && highlights.routes.has(route.route_idx));
           const isChangedCustomer = changedCustomerIds.has(c.customer_id);
           const isOnChangedRoute = route ? changedRouteLabels.has(route.route_label) : false;
           const diffDim = diffActive && !isChangedCustomer && !isOnChangedRoute;

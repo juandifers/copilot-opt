@@ -166,6 +166,11 @@ export interface AspectualDispatchBlock {
   field_paths_surfaced: string[];
 }
 
+export interface VisualAction {
+  kind: string;
+  target: Record<string, unknown>;
+}
+
 export interface CopilotAskResponse {
   system: string;
   scenario_id: string;
@@ -179,6 +184,9 @@ export interface CopilotAskResponse {
   suggested_next_actions: string[];
   compute_decision: ComputeDecisionBlock | null;
   aspectual_dispatch?: AspectualDispatchBlock | null;
+  // Highlight contract: (intent, evidence) -> deterministic UI hints.
+  // Optional for back-compat with pre-fix backends; empty list on refusal.
+  visual_actions?: VisualAction[];
 }
 
 export interface DiffResponse {

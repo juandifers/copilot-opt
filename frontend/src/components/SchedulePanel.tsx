@@ -11,7 +11,7 @@ import type {
   DiffResponse,
   ScenarioResponse,
 } from '../api/types';
-import type { Selection } from '../selection';
+import { EMPTY_HIGHLIGHTS, type Highlights, type Selection } from '../selection';
 import { lensColor, type LensMode } from '../lens';
 
 const LABEL_COL_PX = 110;
@@ -22,6 +22,7 @@ interface Props {
   scenario: ScenarioResponse | null;
   selection: Selection;
   setSelection: (s: Selection) => void;
+  highlights?: Highlights;
   lens: LensMode;
   diffData: DiffResponse | null;
 }
@@ -101,7 +102,14 @@ function renderEmptyState(scenario: ScenarioResponse | null): React.ReactNode | 
   return null;
 }
 
-export function SchedulePanel({ scenario, selection, setSelection, lens, diffData }: Props) {
+export function SchedulePanel({
+  scenario,
+  selection,
+  setSelection,
+  highlights = EMPTY_HIGHLIGHTS,
+  lens,
+  diffData,
+}: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [wrapWidth, setWrapWidth] = useState<number>(800);
   const [cursorX, setCursorX] = useState<number | null>(null);
@@ -262,7 +270,9 @@ export function SchedulePanel({ scenario, selection, setSelection, lens, diffDat
           const sel =
             (selection.kind === 'route' && selection.idx === r.route_idx) ||
             (selection.kind === 'customer' &&
-              r.stops.some((s) => s.customer_id === selection.id));
+              r.stops.some((s) => s.customer_id === selection.id)) ||
+            highlights.routes.has(r.route_idx) ||
+            r.stops.some((s) => highlights.customers.has(s.customer_id));
           const color = ROUTE_COLORS[r.route_idx % ROUTE_COLORS.length];
           const nLate = r.stops.filter((s) => s.is_late).length;
           const rDelta = routeDeltaByLabel.get(r.route_label);
@@ -330,7 +340,8 @@ export function SchedulePanel({ scenario, selection, setSelection, lens, diffDat
                 {r.stops.map((s) => {
                   if (s.arrival == null) return null;
                   const customerSel =
-                    selection.kind === 'customer' && selection.id === s.customer_id;
+                    (selection.kind === 'customer' && selection.id === s.customer_id) ||
+                    highlights.customers.has(s.customer_id);
                   const slack =
                     s.time_window_end != null && s.arrival != null
                       ? s.time_window_end - s.arrival
