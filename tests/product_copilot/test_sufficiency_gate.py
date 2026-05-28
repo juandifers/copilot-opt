@@ -16,12 +16,28 @@ from product.copilot.sufficiency_gate import (
     GATE_FLAG_ENV_VAR,
     SUPPORTED_FAMILIES,
     SufficiencyGateResult,
+    _DEFAULT_DEPLOYMENT_CONFIG,
     gate_enabled,
     predict_sufficiency,
 )
 from product.evaluation.system_d4.compute_decision import (
     DEPLOYABLE_RECOMPUTE_ACTIONS,
     decide_compute,
+)
+
+# The learned sufficiency gate reads a per-family threshold from
+# reports/predictor_models/deployment_config.csv. That CSV is a Stage-A
+# artifact and is not shipped in this checkout (git log --all --diff-filter=A
+# shows it was never committed on any branch). Tests that require the gate to
+# return a real threshold or a real probability decision are skipped on hosts
+# where the CSV isn't present; they run locally for anyone who has Stage-A
+# artifacts laid down at the expected path.
+_REQUIRES_DEPLOYMENT_CONFIG = pytest.mark.skipif(
+    not _DEFAULT_DEPLOYMENT_CONFIG.exists(),
+    reason=(
+        "deployment_config.csv is not shipped in this checkout; runs locally "
+        "when the file is present at reports/predictor_models/deployment_config.csv"
+    ),
 )
 
 
@@ -122,6 +138,7 @@ def test_decide_compute_does_not_call_gate_when_disabled(feature_complete_contex
 # ---------------------------------------------------------------------------
 
 
+@_REQUIRES_DEPLOYMENT_CONFIG
 def test_gate_loads_deployment_config_and_returns_threshold(monkeypatch, feature_complete_contexts):
     monkeypatch.setenv(GATE_FLAG_ENV_VAR, "true")
     result = predict_sufficiency(
@@ -155,6 +172,7 @@ def test_gate_attaches_result_to_decide_compute(monkeypatch, feature_complete_co
 # ---------------------------------------------------------------------------
 
 
+@_REQUIRES_DEPLOYMENT_CONFIG
 def test_gate_returns_no_decision_when_features_missing(monkeypatch):
     monkeypatch.setenv(GATE_FLAG_ENV_VAR, "true")
     result = predict_sufficiency(family="OBJ", payload_snapshot={}, perturbation_context={})
@@ -371,6 +389,7 @@ def test_gate_does_not_remove_route_indexing_warning_branch(monkeypatch, feature
 # ---------------------------------------------------------------------------
 
 
+@_REQUIRES_DEPLOYMENT_CONFIG
 def test_gate_can_accept_current_payload(monkeypatch, feature_complete_contexts):
     """The OBJ row in the training parquet is labeled sufficient, so the
     retrained HistGB / C_clean predictor should accept the current
