@@ -184,17 +184,153 @@ def test_perturbation_summary(client: TestClient) -> None:
     assert _focus_panel(body) == "impact"
 
 
-def test_scenario_summary(client: TestClient) -> None:
+@pytest.mark.parametrize(
+    "prompt, expected_intent",
+    [
+        ("Summarize this scenario.", "scenario_summary"),
+        ("Summarize the solution.", "solution_summary"),
+    ],
+)
+def test_summary_cluster_lens_route_focus_impact(
+    client: TestClient, prompt: str, expected_intent: str
+) -> None:
+    """The summary intent cluster (scenario / solution / perturbation_summary)
+    shares one row in the contract table: lens=route, highlight=summary,
+    focus=impact. perturbation_summary has its own test above to pin
+    behaviour against an OBJ scenario; this parametrized test covers the
+    other two against a STRUCT scenario where they fire as direct answers."""
     r = client.post(
         "/copilot/ask",
-        json={"scenario_id": _SCENARIO_OBJ, "prompt": "Summarize this scenario."},
+        json={"scenario_id": _SCENARIO_STRUCT, "prompt": prompt},
     )
     assert r.status_code == 200
     body = r.json()
-    assert body["intent"] == "scenario_summary"
+    assert body["intent"] == expected_intent
     assert _lens_mode(body) == "route"
     assert "highlight_summary" in _kinds(body)
     assert _focus_panel(body) == "impact"
+
+
+def test_full_route_listing(client: TestClient) -> None:
+    """Listing every route: lens=route, one highlight_route per route in the
+    plan, focus=tables. STRUCT-shape scenario where routes are populated."""
+    r = client.post(
+        "/copilot/ask",
+        json={"scenario_id": _SCENARIO_STRUCT, "prompt": "List all the routes."},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["intent"] == "full_route_listing"
+    assert _lens_mode(body) == "route"
+    hl_routes = [a for a in body["visual_actions"] if a["kind"] == "highlight_route"]
+    # STRUCT scenarios in the locked set have at least 2 routes; pin >=2 to
+    # guard against a regression that loses the per-route iteration.
+    assert len(hl_routes) >= 2
+    assert _focus_panel(body) == "tables"
+
+
+def test_before_after_comparison(client: TestClient) -> None:
+    """Comparison view: lens=route, focus=impact (the diff tab)."""
+    r = client.post(
+        "/copilot/ask",
+        json={
+            "scenario_id": _SCENARIO_STRUCT,
+            "prompt": "What changed between baseline and now?",
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["intent"] == "before_after_comparison"
+    assert _lens_mode(body) == "route"
+    assert _focus_panel(body) == "impact"
+
+
+def test_new_customer_assignment(client: TestClient) -> None:
+    """The 'where was the new customer assigned' question — lens=route,
+    focus=map. Highlights may be empty when the perturbation isn't a
+    customer-insertion type (evidence carries no customer_id then); the
+    lens + focus row of the contract still must fire."""
+    r = client.post(
+        "/copilot/ask",
+        json={
+            "scenario_id": _SCENARIO_STRUCT,
+            "prompt": "Where was the new customer assigned?",
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["intent"] == "new_customer_assignment"
+    assert _lens_mode(body) == "route"
+    assert _focus_panel(body) == "map"
+
+
+@pytest.mark.parametrize(
+    "prompt, expected_intent",
+    [
+        ("What is the impact of this perturbation?", "perturbation_impact_summary"),
+        ("Which routes were impacted?", "route_impact_summary"),
+    ],
+)
+def test_impact_summary_cluster(
+    client: TestClient, prompt: str, expected_intent: str
+) -> None:
+    """Impact summaries: lens=route, focus=impact. Highlights derive from
+    whatever route_idx field paths the contract surfaces; the row above
+    (lens + focus) is what we pin here so the cluster can't silently
+    regress to an empty visual_actions list."""
+    r = client.post(
+        "/copilot/ask",
+        json={"scenario_id": _SCENARIO_STRUCT, "prompt": prompt},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["intent"] == expected_intent
+    assert _lens_mode(body) == "route"
+    assert _focus_panel(body) == "impact"
+
+
+def test_what_to_watch(client: TestClient) -> None:
+    """At-risk stops view: lens=slack, focus=schedule."""
+    r = client.post(
+        "/copilot/ask",
+        json={"scenario_id": _SCENARIO_STRUCT, "prompt": "What should I watch out for?"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["intent"] == "what_to_watch"
+    assert _lens_mode(body) == "slack"
+    assert _focus_panel(body) == "schedule"
+
+
+def test_evaluate_plan_acceptability(client: TestClient) -> None:
+    """Plan-acceptability evaluation: lens=route, highlight=summary,
+    focus=impact."""
+    r = client.post(
+        "/copilot/ask",
+        json={"scenario_id": _SCENARIO_STRUCT, "prompt": "Is this plan acceptable?"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["intent"] == "evaluate_plan_acceptability"
+    assert _lens_mode(body) == "route"
+    assert "highlight_summary" in _kinds(body)
+    assert _focus_panel(body) == "impact"
+
+
+def test_evaluate_dimension_acceptability(client: TestClient) -> None:
+    """Dimension acceptability: the contract row is dimension-dependent
+    (lateness lens for time dimensions, slack lens for feasibility); focus
+    always = schedule. With no evidence to scan, the slack default fires —
+    both lenses are valid per the contract table."""
+    r = client.post(
+        "/copilot/ask",
+        json={"scenario_id": _SCENARIO_STRUCT, "prompt": "Is the lateness acceptable?"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["intent"] == "evaluate_dimension_acceptability"
+    assert _lens_mode(body) in {"slack", "lateness"}
+    assert _focus_panel(body) == "schedule"
 
 
 def test_unknown_intent_emits_no_visual_actions(client: TestClient) -> None:
@@ -231,6 +367,18 @@ def test_every_non_refusal_response_has_set_lens_and_focus_panel(
         (_SCENARIO_OBJ, "What is this perturbation doing?"),
         (_SCENARIO_OBJ, "Summarize this scenario."),
     ]
+    cases.extend([
+        (_SCENARIO_STRUCT, "Summarize the solution."),
+        (_SCENARIO_STRUCT, "List all the routes."),
+        (_SCENARIO_STRUCT, "What changed between baseline and now?"),
+        (_SCENARIO_STRUCT, "Where was the new customer assigned?"),
+        (_SCENARIO_STRUCT, "What is the impact of this perturbation?"),
+        (_SCENARIO_STRUCT, "Which routes were impacted?"),
+        (_SCENARIO_STRUCT, "What should I watch out for?"),
+        (_SCENARIO_STRUCT, "Is this plan acceptable?"),
+        (_SCENARIO_STRUCT, "Is the lateness acceptable?"),
+        (_SCENARIO_STRUCT, "Which route is customer 5 on?"),
+    ])
     for sid, prompt in cases:
         r = client.post("/copilot/ask", json={"scenario_id": sid, "prompt": prompt})
         assert r.status_code == 200, (sid, prompt, r.text)
