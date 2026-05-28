@@ -1,0 +1,88 @@
+{
+  "phase": "pre-fix (before highlighting branch)",
+  "captures": [
+    {
+      "scenario_id": "C105__TT_4",
+      "prompt": "What time does route 3 finish?",
+      "http_status": 200,
+      "response_keys": [
+        "answer_text",
+        "answerability",
+        "behavior_class",
+        "compute_decision",
+        "evidence",
+        "intent",
+        "scenario_id",
+        "semantic_adapter",
+        "suggested_next_actions",
+        "system",
+        "ui_actions",
+        "useful_refusal",
+        "warnings"
+      ],
+      "has_visual_actions_field": false,
+      "intent": "route_end_time",
+      "evidence_count": 1,
+      "behavior_class": "direct_answer_with_warning",
+      "first_evidence_display_anchor": {
+        "type": "route_end",
+        "route_idx": 2,
+        "route_label": "Route 3"
+      }
+    },
+    {
+      "scenario_id": "C105__TT_4",
+      "prompt": "Which customers are late?",
+      "http_status": 200,
+      "response_keys": [
+        "answer_text",
+        "answerability",
+        "behavior_class",
+        "compute_decision",
+        "evidence",
+        "intent",
+        "scenario_id",
+        "semantic_adapter",
+        "suggested_next_actions",
+        "system",
+        "ui_actions",
+        "useful_refusal",
+        "warnings"
+      ],
+      "has_visual_actions_field": false,
+      "intent": "lateness_summary",
+      "evidence_count": 2,
+      "behavior_class": "direct_answer",
+      "first_evidence_display_anchor": {
+        "type": "solution_summary"
+      }
+    },
+    {
+      "scenario_id": "C202__TW_3",
+      "prompt": "What is the objective value?",
+      "http_status": 200,
+      "response_keys": [
+        "answer_text",
+        "answerability",
+        "behavior_class",
+        "compute_decision",
+        "evidence",
+        "intent",
+        "scenario_id",
+        "semantic_adapter",
+        "suggested_next_actions",
+        "system",
+        "ui_actions",
+        "useful_refusal",
+        "warnings"
+      ],
+      "has_visual_actions_field": false,
+      "intent": "objective_value",
+      "evidence_count": 2,
+      "behavior_class": "direct_answer",
+      "first_evidence_display_anchor": {
+        "type": "solution_summary"
+      }
+    }
+  ]
+}
