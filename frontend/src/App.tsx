@@ -16,6 +16,7 @@ import type {
   ScenarioResponse,
 } from './api/types';
 import { CopilotPanel } from './components/CopilotPanel';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { MapPanel } from './components/MapPanel';
 import { SchedulePanel } from './components/SchedulePanel';
 import { TablesPanel } from './components/TablesPanel';
@@ -543,15 +544,17 @@ export default function App() {
         {!collapsed.copilot && <ColResizer onResize={resizeMainVsCopilot} />}
         {collapsed.copilot && <div />}
 
-        <CopilotPanel
-          scenarioId={scenarioId}
-          scenario={scenario}
-          selection={selection}
-          setSelection={setSelection}
-          setTablesTab={setTablesTab}
-          collapsed={collapsed.copilot}
-          onToggleCollapse={() => toggleCollapse('copilot')}
-        />
+        <ErrorBoundary label="Copilot">
+          <CopilotPanel
+            scenarioId={scenarioId}
+            scenario={scenario}
+            selection={selection}
+            setSelection={setSelection}
+            setTablesTab={setTablesTab}
+            collapsed={collapsed.copilot}
+            onToggleCollapse={() => toggleCollapse('copilot')}
+          />
+        </ErrorBoundary>
       </div>
     </>
   );
