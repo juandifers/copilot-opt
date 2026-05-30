@@ -132,6 +132,12 @@ class LLMSemanticFrame(BaseModel):
     recompute_request: bool = False
     ambiguity: LLMAmbiguity = Field(default_factory=LLMAmbiguity)
     alternative_intents: list[LLMAlternativeIntent] = Field(default_factory=list)
+    # Set to True only by the self-consistency aggregator (Lever 3) when N
+    # sampled frames fail to produce a strict-majority intent and the
+    # aggregator forces intent='unknown' — telemetry signal, never emitted
+    # by the LLM itself. Defaults to False so existing single-call paths
+    # are unaffected.
+    tie_break: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -212,6 +218,17 @@ class LLMAdapterMetadata(BaseModel):
     retry_success: Optional[bool] = None
     retry_reason: Optional[str] = None
     retry_latency_ms: Optional[int] = None
+    # Lever 3 self-consistency telemetry. Populated only when the adapter
+    # ran with SELF_CONSISTENCY_N > 1; ``None`` for the default single-call
+    # path so existing telemetry consumers see no change. The dict shape:
+    #   {
+    #     "n_samples":      configured N,
+    #     "sample_intents": list[Optional[str]] of length N (None == sample
+    #                       failed validation; skipped from the vote),
+    #     "chose":          the aggregated intent (or "unknown" on tie),
+    #     "tie_break":      True when no strict majority forced unknown.
+    #   }
+    self_consistency: Optional[dict] = None
 
 
 __all__ = [

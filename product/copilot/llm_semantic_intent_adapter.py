@@ -39,10 +39,12 @@ Local validation rejects LLM output if:
 """
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import os
 import re
 import time
+from collections import Counter
 from typing import Any, Optional
 
 from pydantic import ValidationError
@@ -619,20 +621,75 @@ def _retry_with_feedback(
 
 
 # ---------------------------------------------------------------------------
+# Lever 3 — self-consistency configuration
+# ---------------------------------------------------------------------------
+#
+# The LLM still only produces an intent + entities; aggregation and
+# tie-handling are deterministic so propose/dispose stays intact. With
+# SELF_CONSISTENCY_N=1 the adapter takes the original single-call path
+# verbatim; with N>1 we issue N concurrent samples at the configured
+# temperature, vote on the intent (strict majority over configured N),
+# and force intent='unknown' with tie_break=True on no strict majority —
+# the honest-refusal ethos rather than guessing.
+
+_SELF_CONSISTENCY_N_ENV = "SELF_CONSISTENCY_N"
+_SELF_CONSISTENCY_TEMP_ENV = "SELF_CONSISTENCY_TEMPERATURE"
+
+_SELF_CONSISTENCY_N_DEFAULT = 1
+_SELF_CONSISTENCY_TEMPERATURE_DEFAULT = 0.5
+
+# Confidence assigned to the synthetic tie-break frame so the unknown
+# intent passes validate_llm_frame and propagates through to the contract
+# layer rather than being demoted to a low-confidence fallback. The
+# confidence is in the *aggregation decision* (we are confident the LLM
+# could not converge), not in any single intent.
+_TIE_BREAK_CONFIDENCE = 0.9
+
+
+def _get_self_consistency_n() -> int:
+    raw = os.environ.get(_SELF_CONSISTENCY_N_ENV, "").strip()
+    if not raw:
+        return _SELF_CONSISTENCY_N_DEFAULT
+    try:
+        n = int(raw)
+    except ValueError:
+        return _SELF_CONSISTENCY_N_DEFAULT
+    return max(1, n)
+
+
+def _get_self_consistency_temperature() -> float:
+    raw = os.environ.get(_SELF_CONSISTENCY_TEMP_ENV, "").strip()
+    if not raw:
+        return _SELF_CONSISTENCY_TEMPERATURE_DEFAULT
+    try:
+        return float(raw)
+    except ValueError:
+        return _SELF_CONSISTENCY_TEMPERATURE_DEFAULT
+
+
+# ---------------------------------------------------------------------------
 # LLM call
 # ---------------------------------------------------------------------------
 
 
-def _call_llm(
+def _call_llm_single(
     client: Any,
     prompt: str,
     available_fields: Optional[dict] = None,
     model: str = _LLM_MODEL,
+    temperature: float = 0.0,
 ) -> tuple[Optional[LLMSemanticFrame], LLMAdapterMetadata]:
-    """Call the LLM and parse structured output.
+    """Issue ONE LLM call + retry-on-validation + Pydantic validation.
 
-    Returns (frame_or_None, metadata). Parses and validates JSON;
-    does NOT apply semantic guardrails (that is validate_llm_frame's job).
+    Does NOT apply the three post-validation semantic guards — those are
+    layered in `_apply_post_validation_guards` so the self-consistency
+    aggregator can apply them once on the aggregated frame rather than
+    per sample.
+
+    Returns (frame_or_None, metadata). When ``frame`` is ``None``, the
+    sample failed (transport error, JSON decode error, or
+    schema-validation error that the retry did not recover) and callers
+    should skip it from any downstream vote.
     """
     from product.evaluation.model_clients.openai_client import (
         call_openai_contract_model,
@@ -655,7 +712,7 @@ def _call_llm(
         client=client,
         model=model,
         messages=messages,
-        temperature=0.0,
+        temperature=temperature,
         max_output_tokens=512,
         response_format_json_object=True,
         max_retries=1,
@@ -706,8 +763,8 @@ def _call_llm(
 
         # A-008.5 R2: attempt a single corrective retry with feedback.
         # The recovered frame still flows through every semantic guard
-        # below, so guard interactions remain identical to a first-try
-        # validated frame.
+        # downstream, so guard interactions remain identical to a
+        # first-try validated frame.
         if _retry_enabled():
             meta.retry_fired = True
             meta.retry_reason = _classify_validation_error(exc)
@@ -724,7 +781,7 @@ def _call_llm(
                 meta.retry_success = True
                 meta.schema_valid = True
                 frame = retry_frame
-                # Fall through to semantic guards below — DO NOT return here.
+                # Fall through — caller still owns guard application.
             else:
                 meta.retry_success = False
                 meta.validation_outcome = (
@@ -753,7 +810,22 @@ def _call_llm(
 
     meta.llm_intent = frame.intent
     meta.confidence = frame.confidence
+    return frame, meta
 
+
+def _apply_post_validation_guards(
+    prompt: str,
+    frame: LLMSemanticFrame,
+    meta: LLMAdapterMetadata,
+) -> tuple[LLMSemanticFrame, LLMAdapterMetadata]:
+    """Apply the three deterministic post-validation guards in order.
+
+    Extracted from the original `_call_llm` body so it can run once on
+    the aggregated frame under SELF_CONSISTENCY_N>1 rather than per
+    sample. Behavior is identical to the inlined version: evaluation
+    guard then counterfactual guard then ranking guard, with the same
+    early-return semantics on a fired ranking guard.
+    """
     # A-008 evaluation guard: redirect mis-classified comparison prompts
     # ("Did anything improve?") back to before_after_comparison so the
     # comparison renderer runs instead of the evaluation verdict.
@@ -783,6 +855,217 @@ def _call_llm(
         return guarded_frame_r, meta
 
     return frame, meta
+
+
+def _aggregate_frames(
+    sampled_frames: list[Optional[LLMSemanticFrame]],
+    n_configured: int,
+) -> tuple[Optional[LLMSemanticFrame], dict]:
+    """Aggregate N sampled frames via majority vote on intent.
+
+    Voting rules:
+      * Strict majority over the configured N (count > N/2) wins. Sample
+        failures (``None`` entries) are skipped from the vote but the
+        threshold stays at ``N/2`` — so a 1-of-5 winner with 4 failures
+        is not promoted; the consensus has to come from real samples.
+      * No strict majority → synthetic frame with intent='unknown' and
+        tie_break=True. This is the honest-refusal posture: when N
+        prompts cannot converge, refuse rather than guess.
+      * Entities come from the FIRST sampled frame whose intent matches
+        the winner. Simple, deterministic, no merging cleverness.
+      * All-failures → returns ``(None, telemetry)`` so callers can
+        treat it identically to the existing single-call all-fail path.
+
+    Returns ``(frame_or_None, self_consistency_telemetry_dict)``.
+    """
+    sample_intents: list[Optional[str]] = [
+        f.intent if f is not None else None for f in sampled_frames
+    ]
+    successful = [f for f in sampled_frames if f is not None]
+
+    telemetry: dict = {
+        "n_samples": n_configured,
+        "sample_intents": sample_intents,
+        "chose": None,
+        "tie_break": False,
+    }
+
+    if not successful:
+        return None, telemetry
+
+    counts = Counter(f.intent for f in successful)
+    threshold = n_configured / 2.0
+    winners = [intent for intent, c in counts.items() if c > threshold]
+
+    if len(winners) == 1:
+        winner = winners[0]
+        chosen = next(f for f in successful if f.intent == winner)
+        telemetry["chose"] = winner
+        # Confidence: use the vote share (winner_count / N_configured)
+        # rather than the donor sample's per-call confidence. A 5/5 majority
+        # is stronger evidence than a single call's 0.62 confidence — using
+        # the donor value verbatim lets one weak sample's flags invalidate a
+        # clear consensus. Clamped to [0, 1] for schema compliance.
+        vote_confidence = min(1.0, max(0.0, counts[winner] / n_configured))
+        # Ambiguity: a strict majority settles the intent — the aggregate is
+        # not ambiguous even if an individual sample was. Clearing the flag
+        # prevents validate_llm_frame from rejecting the aggregated winner.
+        return chosen.model_copy(update={
+            "tie_break": False,
+            "confidence": vote_confidence,
+            "ambiguity": chosen.ambiguity.model_copy(
+                update={"is_ambiguous": False, "reason": None}
+            ),
+        }), telemetry
+
+    # No strict majority → unknown + tie_break.
+    synthetic = LLMSemanticFrame(
+        intent="unknown",
+        confidence=_TIE_BREAK_CONFIDENCE,
+        tie_break=True,
+    )
+    telemetry["chose"] = "unknown"
+    telemetry["tie_break"] = True
+    return synthetic, telemetry
+
+
+def _call_llm_self_consistent(
+    client: Any,
+    prompt: str,
+    available_fields: Optional[dict],
+    model: str,
+    n: int,
+    temperature: float,
+) -> tuple[Optional[LLMSemanticFrame], LLMAdapterMetadata]:
+    """Issue N concurrent LLM samples and majority-vote on intent.
+
+    Each sample goes through its own `_call_llm_single` (call + retry on
+    validation + Pydantic validation). Sample failures are skipped from
+    the vote — they do not poison it. The post-validation guards are
+    NOT applied here; the caller (`_call_llm`) applies them once on the
+    aggregated frame so guard semantics match the N=1 path.
+    """
+    sampled_frames: list[Optional[LLMSemanticFrame]] = [None] * n
+    sample_metas: list[LLMAdapterMetadata] = [LLMAdapterMetadata()] * n
+
+    def _one(_i: int) -> tuple[int, Optional[LLMSemanticFrame], LLMAdapterMetadata]:
+        f, m = _call_llm_single(
+            client=client,
+            prompt=prompt,
+            available_fields=available_fields,
+            model=model,
+            temperature=temperature,
+        )
+        return _i, f, m
+
+    t0 = time.monotonic()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=n) as pool:
+        for fut in concurrent.futures.as_completed(
+            [pool.submit(_one, i) for i in range(n)]
+        ):
+            i, f, m = fut.result()
+            sampled_frames[i] = f
+            sample_metas[i] = m
+    total_latency_ms = (time.monotonic() - t0) * 1000
+
+    aggregated_frame, sc_telemetry = _aggregate_frames(sampled_frames, n_configured=n)
+
+    # Build the merged metadata. Prefer the metadata of the winning
+    # sample when there is one (so its retry/confidence stays visible);
+    # otherwise prefer the first successful sample; otherwise fall back
+    # to a clean metadata stamped with the failure reason.
+    merged = LLMAdapterMetadata(
+        mode="hybrid_guarded",
+        source="llm",
+        model_name=model,
+        latency_ms=total_latency_ms,
+    )
+    successful_metas = [
+        m for f, m in zip(sampled_frames, sample_metas) if f is not None
+    ]
+    if aggregated_frame is not None and sc_telemetry["chose"] != "unknown":
+        # Winner branch: locate the first sample matching the winner.
+        winner = sc_telemetry["chose"]
+        donor_meta = next(
+            (
+                m
+                for f, m in zip(sampled_frames, sample_metas)
+                if f is not None and f.intent == winner
+            ),
+            successful_metas[0] if successful_metas else merged,
+        )
+        merged.llm_intent = aggregated_frame.intent
+        merged.confidence = aggregated_frame.confidence
+        merged.schema_valid = True
+        # Carry forward any guard / retry flags that fired during the
+        # winning sample — these are still true facts about that call.
+        merged.retry_fired = donor_meta.retry_fired
+        merged.retry_success = donor_meta.retry_success
+        merged.retry_reason = donor_meta.retry_reason
+        merged.retry_latency_ms = donor_meta.retry_latency_ms
+        merged.validation_error_details = donor_meta.validation_error_details
+    elif aggregated_frame is not None:
+        # Tie-break unknown branch.
+        merged.llm_intent = aggregated_frame.intent
+        merged.confidence = aggregated_frame.confidence
+        merged.schema_valid = True
+    else:
+        # All-fail branch — mirror the single-call all-fail semantics.
+        merged.validation_outcome = ValidationOutcome.rejected_invalid_schema.value
+        merged.fallback_used = True
+        merged.fallback_reason = (
+            f"self_consistency_all_samples_failed (n={n})"
+        )
+
+    # Sum token usage across samples for honest cost telemetry.
+    tp = sum((m.tokens_prompt or 0) for m in sample_metas)
+    tc = sum((m.tokens_completion or 0) for m in sample_metas)
+    merged.tokens_prompt = tp or None
+    merged.tokens_completion = tc or None
+    merged.self_consistency = sc_telemetry
+
+    return aggregated_frame, merged
+
+
+def _call_llm(
+    client: Any,
+    prompt: str,
+    available_fields: Optional[dict] = None,
+    model: str = _LLM_MODEL,
+) -> tuple[Optional[LLMSemanticFrame], LLMAdapterMetadata]:
+    """Call the LLM and parse structured output.
+
+    Dispatches to the single-call path when SELF_CONSISTENCY_N <= 1
+    (default, identical to the original behavior) or to the
+    self-consistency aggregator when N > 1. The three post-validation
+    semantic guards are applied once at the end so their semantics are
+    identical across both paths.
+    """
+    n = _get_self_consistency_n()
+    if n <= 1:
+        frame, meta = _call_llm_single(
+            client=client,
+            prompt=prompt,
+            available_fields=available_fields,
+            model=model,
+            temperature=0.0,
+        )
+        if frame is None:
+            return None, meta
+        return _apply_post_validation_guards(prompt, frame, meta)
+
+    temperature = _get_self_consistency_temperature()
+    frame, meta = _call_llm_self_consistent(
+        client=client,
+        prompt=prompt,
+        available_fields=available_fields,
+        model=model,
+        n=n,
+        temperature=temperature,
+    )
+    if frame is None:
+        return None, meta
+    return _apply_post_validation_guards(prompt, frame, meta)
 
 
 # ---------------------------------------------------------------------------
@@ -1035,6 +1318,7 @@ def infer_intent_llm_fallback(
     meta.retry_success = llm_meta.retry_success
     meta.retry_reason = llm_meta.retry_reason
     meta.retry_latency_ms = llm_meta.retry_latency_ms
+    meta.self_consistency = llm_meta.self_consistency
 
     if llm_frame is None:
         meta.fallback_used = True
@@ -1113,6 +1397,7 @@ def infer_intent_hybrid_guarded(
     meta.retry_success = llm_meta.retry_success
     meta.retry_reason = llm_meta.retry_reason
     meta.retry_latency_ms = llm_meta.retry_latency_ms
+    meta.self_consistency = llm_meta.self_consistency
 
     if llm_frame is None:
         # LLM call failed — keep D1
