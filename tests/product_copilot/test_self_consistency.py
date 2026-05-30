@@ -178,6 +178,51 @@ def test_all_fail_returns_none_with_telemetry():
     assert tel["tie_break"] is False
 
 
+def test_winner_confidence_is_vote_share_not_donor_confidence():
+    """The aggregated winner frame should use vote_count/N as confidence,
+    not the donor sample's per-call confidence — so a clear consensus
+    is not invalidated by a single weak sample.
+    """
+    # Donor sample has confidence=0.61 (conditional zone); two others agree.
+    low_conf_donor = LLMSemanticFrame.model_validate({
+        "intent": "objective_value", "confidence": 0.61,
+        "entities": {"customer_ids": [], "route_labels": []},
+        "requires_baseline": False, "comparison_type": "none",
+        "causal_request": False, "recompute_request": False,
+        "ambiguity": {"is_ambiguous": False, "reason": None},
+        "alternative_intents": [],
+    })
+    other = _frame("objective_value", confidence=0.91)
+    frames = [low_conf_donor, other, other]  # 3/3 agree, N=3
+
+    f, _tel = adapter._aggregate_frames(frames, n_configured=3)
+    assert f is not None
+    # vote_confidence = 3/3 = 1.0, not 0.61
+    assert f.confidence == pytest.approx(1.0)
+    assert f.ambiguity.is_ambiguous is False
+
+
+def test_winner_ambiguity_cleared_even_when_donor_was_ambiguous():
+    """An ambiguous donor sample must not make the aggregated frame
+    ambiguous — the majority vote resolves the ambiguity.
+    """
+    ambig_donor = LLMSemanticFrame.model_validate({
+        "intent": "objective_value", "confidence": 0.90,
+        "entities": {"customer_ids": [], "route_labels": []},
+        "requires_baseline": False, "comparison_type": "none",
+        "causal_request": False, "recompute_request": False,
+        "ambiguity": {"is_ambiguous": True, "reason": "could be objective_delta"},
+        "alternative_intents": [],
+    })
+    other = _frame("objective_value")
+    frames = [ambig_donor, other, other]  # 3/3 agree
+
+    f, _tel = adapter._aggregate_frames(frames, n_configured=3)
+    assert f is not None
+    assert f.ambiguity.is_ambiguous is False
+    assert f.ambiguity.reason is None
+
+
 def test_strict_majority_threshold_is_configured_N_not_success_count():
     # Configured N=5, only 2 successful samples both 'A'. Threshold stays
     # at 5/2 = 2.5 → 2 successes is NOT a strict majority → tie_break.
