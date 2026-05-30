@@ -543,6 +543,13 @@ def ask(
                 "field_paths_surfaced": [ev.get("field_path") for ev in evidence_out],
             }
 
+    # Derive highlight hints from (intent, evidence_items). Empty for
+    # refusal_or_insufficient_payload / unknown so the frontend keeps the
+    # operator's current lens. See docs/highlight_contract.md.
+    visual_actions = evidence_mod.infer_visual_actions(
+        predicted.predicted_intent, evidence_items
+    )
+
     result = {
         "system": sys_name,
         "scenario_id": scenario_id,
@@ -562,6 +569,7 @@ def ask(
         "suggested_next_actions": list(predicted.predicted_next_actions),
         "compute_decision": compute_decision,
         "ui_actions": ui_actions,
+        "visual_actions": [va.model_dump() for va in visual_actions],
     }
     if semantic_adapter is not None:
         result["semantic_adapter"] = semantic_adapter

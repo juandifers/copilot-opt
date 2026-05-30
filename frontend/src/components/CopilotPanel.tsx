@@ -15,15 +15,24 @@ import type {
   EvidenceItem,
   ScenarioResponse,
 } from '../api/types';
-import type { Selection } from '../selection';
+import type { Highlights, Selection } from '../selection';
+import type { LensMode } from '../lens';
+import { AvailableFieldsStrip } from './AvailableFieldsStrip';
 import { CollapseToggle } from './CollapseToggle';
 import type { TablesTab } from './TablesPanel';
+
+// Panel focus targets, mirrored from the highlight contract's focus_panel
+// VisualAction. App.tsx maps these onto its Collapsed/tablesTab state.
+export type FocusTarget = 'map' | 'schedule' | 'tables' | 'impact';
 
 interface Props {
   scenarioId: string | null;
   scenario: ScenarioResponse | null;
   selection: Selection;
   setSelection: (s: Selection) => void;
+  setHighlights: (h: Highlights) => void;
+  setLens: (m: LensMode) => void;
+  setCollapsed: (key: 'map' | 'schedule' | 'tables', value: boolean) => void;
   setTablesTab?: (t: TablesTab) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -57,6 +66,12 @@ function lead(intent: string): string {
 interface SelectFns {
   setSelection: (s: Selection) => void;
   setTablesTab?: (t: TablesTab) => void;
+}
+
+interface VisualActionFns extends SelectFns {
+  setHighlights: (h: Highlights) => void;
+  setLens: (m: LensMode) => void;
+  setCollapsed: (key: 'map' | 'schedule' | 'tables', value: boolean) => void;
 }
 
 function RouteRef({
@@ -872,9 +887,10 @@ type Message =
 interface MsgProps {
   m: Message;
   sel: SelectFns;
+  scenario: ScenarioResponse | null;
 }
 
-function CopilotMessage({ m, sel }: MsgProps) {
+function CopilotMessage({ m, sel, scenario }: MsgProps) {
   if (m.role === 'user') {
     return (
       <div className="msg user">
@@ -923,6 +939,15 @@ function CopilotMessage({ m, sel }: MsgProps) {
     : composeProse(resp, sel);
   const showProse = composed != null;
 
+  // On refusal/unknown the contract emits no visual_actions and the prose
+  // composer falls through to refusalProse. Show the AvailableFieldsStrip
+  // beneath the refusal text so the operator immediately sees which payload
+  // blocks ARE populated — the honest-refusal UX.
+  const isRefusal =
+    !showProse ||
+    resp.intent === 'unknown' ||
+    resp.intent === 'refusal_or_insufficient_payload';
+
   return (
     <div className="msg bot">
       <div className="role">Copilot</div>
@@ -930,6 +955,11 @@ function CopilotMessage({ m, sel }: MsgProps) {
         <div className="answer">
           {showProse ? composed : refusalProse(resp)}
         </div>
+        {isRefusal && scenario && (
+          <div style={{ marginTop: 8 }}>
+            <AvailableFieldsStrip scenario={scenario} />
+          </div>
+        )}
         {/* Suppress ComputeNote when the aspectual fallback drove the
            response — compute_decision will read clarification_needed
            and clash visually with the grounded evidence we just shared. */}
@@ -957,35 +987,68 @@ const SUGGESTIONS = [
 ];
 
 // ---------------------------------------------------------------------------
-// Auto-dispatch first evidence anchor to selection on response arrival
+// Apply visual_actions from the highlight contract on response arrival.
+//
+// docs/highlight_contract.md is the source of truth. Backend infers a list of
+// VisualAction{kind, target} from (intent, evidence); this function maps each
+// kind onto the corresponding frontend state setter.
+//
+// Empty actions list → refusal/unknown: leave the operator's lens alone and
+// let the caller surface the available-fields hint instead.
 // ---------------------------------------------------------------------------
 
-function autoSelect(
+const LENS_MODES = new Set<LensMode>(['route', 'lateness', 'slack']);
+
+function applyVisualActions(
   resp: CopilotAskResponse,
-  sel: SelectFns,
+  sel: VisualActionFns,
 ) {
-  const first = resp.evidence[0];
-  if (!first) return;
-  const a = first.display_anchor as DisplayAnchor & {
-    customer_id?: number;
-    route_idx?: number;
-    route_label?: string;
-  };
-  if (!a) return;
-  if (a.type === 'customer' || a.type === 'customer_arrival') {
-    if (a.customer_id != null) {
-      sel.setSelection({ kind: 'customer', id: a.customer_id });
+  const actions = resp.visual_actions ?? [];
+  if (actions.length === 0) return; // refusal / unknown: do NOT touch lens.
+
+  const routes = new Set<number>();
+  const customers = new Set<number>();
+
+  for (const a of actions) {
+    if (a.kind === 'set_lens') {
+      const mode = a.target.mode;
+      if (typeof mode === 'string' && LENS_MODES.has(mode as LensMode)) {
+        sel.setLens(mode as LensMode);
+      }
+    } else if (a.kind === 'highlight_route') {
+      const idx = a.target.route_idx;
+      if (typeof idx === 'number') routes.add(idx);
+    } else if (a.kind === 'highlight_customer') {
+      const id = a.target.customer_id;
+      if (typeof id === 'number') customers.add(id);
+    } else if (a.kind === 'focus_panel') {
+      const panel = a.target.panel;
+      if (panel === 'map' || panel === 'schedule' || panel === 'tables') {
+        sel.setCollapsed(panel, false);
+      } else if (panel === 'impact') {
+        // The "impact" panel is the diff tab inside Tables today.
+        sel.setCollapsed('tables', false);
+        sel.setTablesTab?.('diff');
+      }
     }
-    if (a.type === 'customer_arrival') sel.setTablesTab?.('customers');
-  } else if (a.type === 'route' || a.type === 'route_end') {
-    if (a.route_idx != null) {
-      sel.setSelection({
-        kind: 'route',
-        idx: a.route_idx,
-        label: a.route_label,
-      });
-      sel.setTablesTab?.('routes');
-    }
+    // highlight_summary / show_* card kinds: no-op here. The bot prose
+    // already renders the answer; the cards live in their respective panels
+    // and react to lens + selection, not to these kinds directly.
+  }
+
+  sel.setHighlights({ routes, customers });
+
+  // Keep single-target Selection in sync when there's exactly one target —
+  // existing click-aware code (scroll-into-view, tables tab nudge) keeps
+  // working without churn.
+  if (routes.size === 1 && customers.size === 0) {
+    const [idx] = [...routes];
+    sel.setSelection({ kind: 'route', idx });
+    sel.setTablesTab?.('routes');
+  } else if (customers.size === 1 && routes.size === 0) {
+    const [id] = [...customers];
+    sel.setSelection({ kind: 'customer', id });
+    sel.setTablesTab?.('customers');
   }
 }
 
@@ -998,6 +1061,9 @@ export function CopilotPanel({
   scenario,
   selection: _selection,
   setSelection,
+  setHighlights,
+  setLens,
+  setCollapsed,
   setTablesTab,
   collapsed,
   onToggleCollapse,
@@ -1008,6 +1074,13 @@ export function CopilotPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const sel: SelectFns = { setSelection, setTablesTab };
+  const va: VisualActionFns = {
+    setSelection,
+    setTablesTab,
+    setHighlights,
+    setLens,
+    setCollapsed,
+  };
 
   useEffect(() => {
     setMessages(
@@ -1064,7 +1137,7 @@ export function CopilotPanel({
         }
       }
       setMessages((m) => [...m, { role: 'bot-response', resp }]);
-      autoSelect(resp, sel);
+      applyVisualActions(resp, va);
     } catch (err: unknown) {
       const code = err instanceof ApiError ? err.body.code : 'network_error';
       const message =
@@ -1107,7 +1180,7 @@ export function CopilotPanel({
       </div>
       <div className="copilot-scroll scroll-thin" ref={scrollRef}>
         {messages.map((m, i) => (
-          <CopilotMessage key={i} m={m} sel={sel} />
+          <CopilotMessage key={i} m={m} sel={sel} scenario={scenario} />
         ))}
         {pending && <TypingDots />}
       </div>

@@ -24,7 +24,7 @@ import { LensSwitch } from './components/LensSwitch';
 import { ColResizer, RowResizer } from './components/Resizers';
 import type { TablesTab } from './components/TablesPanel';
 import { TopBar, type HealthSummary } from './components/TopBar';
-import { NONE, type Selection } from './selection';
+import { EMPTY_HIGHLIGHTS, NONE, type Highlights, type Selection } from './selection';
 import type { LensMode } from './lens';
 
 interface Layout {
@@ -146,9 +146,15 @@ export default function App() {
   const [diffLoading, setDiffLoading] = useState<boolean>(false);
   const [diffNotAvailable, setDiffNotAvailable] = useState<boolean>(false);
 
-  // Cross-panel selection (route / customer / summary). Schedule and Tables
-  // share the same state; Map will adopt the same selection when it's wired.
+  // Cross-panel selection (route / customer / summary). Click-driven; single
+  // target. Schedule, Tables, and Map all read/write this.
   const [selection, setSelection] = useState<Selection>(NONE);
+
+  // Multi-target highlight set, populated by Copilot visual_actions. Lives in
+  // parallel with selection so multi-target intents (e.g. lateness_summary)
+  // can light up every late stop while click-driven UI keeps single-target
+  // semantics. MapPanel + SchedulePanel union-check both.
+  const [highlights, setHighlights] = useState<Highlights>(EMPTY_HIGHLIGHTS);
 
   // Operator-adjustable panel sizes; persisted to localStorage across reloads.
   const [layout, setLayout] = useState<Layout>(loadLayout);
@@ -422,6 +428,7 @@ export default function App() {
                 scenario={scenario}
                 selection={selection}
                 setSelection={setSelection}
+                highlights={highlights}
                 lens={lens}
                 diffData={diffData}
               />
@@ -508,6 +515,7 @@ export default function App() {
                 scenario={scenario}
                 selection={selection}
                 setSelection={setSelection}
+                highlights={highlights}
                 lens={lens}
                 diffData={diffData}
               />
@@ -548,6 +556,11 @@ export default function App() {
           scenario={scenario}
           selection={selection}
           setSelection={setSelection}
+          setHighlights={setHighlights}
+          setLens={setLens}
+          setCollapsed={(key, value) =>
+            setCollapsed((c) => ({ ...c, [key]: value }))
+          }
           setTablesTab={setTablesTab}
           collapsed={collapsed.copilot}
           onToggleCollapse={() => toggleCollapse('copilot')}

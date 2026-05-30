@@ -1,0 +1,168 @@
+{
+  "phase": "post-fix (highlighting branch)",
+  "captures": [
+    {
+      "scenario_id": "C105__TT_4",
+      "prompt": "What time does route 3 finish?",
+      "http_status": 200,
+      "intent": "route_end_time",
+      "behavior_class": "direct_answer_with_warning",
+      "visual_actions": [
+        {
+          "kind": "set_lens",
+          "target": {
+            "mode": "lateness"
+          }
+        },
+        {
+          "kind": "highlight_route",
+          "target": {
+            "route_idx": 2
+          }
+        },
+        {
+          "kind": "show_route_end_time",
+          "target": {}
+        },
+        {
+          "kind": "focus_panel",
+          "target": {
+            "panel": "schedule"
+          }
+        }
+      ],
+      "has_visual_actions_field": true
+    },
+    {
+      "scenario_id": "C105__TT_4",
+      "prompt": "Which customers are late?",
+      "http_status": 200,
+      "intent": "lateness_summary",
+      "behavior_class": "direct_answer",
+      "visual_actions": [
+        {
+          "kind": "set_lens",
+          "target": {
+            "mode": "lateness"
+          }
+        },
+        {
+          "kind": "show_lateness_summary",
+          "target": {}
+        },
+        {
+          "kind": "focus_panel",
+          "target": {
+            "panel": "schedule"
+          }
+        }
+      ],
+      "has_visual_actions_field": true
+    },
+    {
+      "scenario_id": "C202__TW_3",
+      "prompt": "What is the objective value?",
+      "http_status": 200,
+      "intent": "objective_value",
+      "behavior_class": "direct_answer",
+      "visual_actions": [
+        {
+          "kind": "set_lens",
+          "target": {
+            "mode": "route"
+          }
+        },
+        {
+          "kind": "highlight_summary",
+          "target": {}
+        },
+        {
+          "kind": "show_objective_card",
+          "target": {}
+        },
+        {
+          "kind": "focus_panel",
+          "target": {
+            "panel": "impact"
+          }
+        }
+      ],
+      "has_visual_actions_field": true
+    },
+    {
+      "scenario_id": "RC101__TT_1",
+      "prompt": "Which customers are late?",
+      "http_status": 200,
+      "intent": "lateness_summary",
+      "behavior_class": "direct_answer",
+      "visual_actions": [
+        {
+          "kind": "set_lens",
+          "target": {
+            "mode": "lateness"
+          }
+        },
+        {
+          "kind": "highlight_customer",
+          "target": {
+            "customer_id": 48
+          }
+        },
+        {
+          "kind": "show_lateness_summary",
+          "target": {}
+        },
+        {
+          "kind": "focus_panel",
+          "target": {
+            "panel": "schedule"
+          }
+        }
+      ],
+      "has_visual_actions_field": true
+    },
+    {
+      "scenario_id": "C102__OC_1",
+      "prompt": "Which route is customer 5 on?",
+      "http_status": 200,
+      "intent": "single_customer_route_membership",
+      "behavior_class": "direct_answer_with_warning",
+      "visual_actions": [
+        {
+          "kind": "set_lens",
+          "target": {
+            "mode": "route"
+          }
+        },
+        {
+          "kind": "highlight_route",
+          "target": {
+            "route_idx": 5
+          }
+        },
+        {
+          "kind": "highlight_customer",
+          "target": {
+            "customer_id": 42
+          }
+        },
+        {
+          "kind": "focus_panel",
+          "target": {
+            "panel": "map"
+          }
+        }
+      ],
+      "has_visual_actions_field": true
+    },
+    {
+      "scenario_id": "C202__TW_3",
+      "prompt": "What if we add customer 999 near route 4?",
+      "http_status": 200,
+      "intent": "unknown",
+      "behavior_class": "useful_refusal",
+      "visual_actions": [],
+      "has_visual_actions_field": true
+    }
+  ]
+}

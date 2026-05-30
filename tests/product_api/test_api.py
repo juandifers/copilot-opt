@@ -333,8 +333,17 @@ def test_copilot_ask_missing_scenario_returns_404(client: TestClient) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_diff_returns_404_when_unavailable(client: TestClient) -> None:
-    r = client.post(f"/scenarios/C202/TW_3/diff")
+def test_diff_returns_404_when_unavailable(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The locked Run-1 set always ships a baseline (so every real scenario
+    has a diff today). Pin the endpoint's ``diff_not_available`` envelope
+    explicitly by forcing ``build_diff_response`` to return ``None``, the
+    documented signal for a payload without baseline_solution + diff."""
+    monkeypatch.setattr(
+        scenario_store, "build_diff_response", lambda *_args, **_kwargs: None
+    )
+    r = client.post("/scenarios/C202/TW_3/diff")
     assert r.status_code == 404
     body = r.json()
     assert body["error"]["code"] == "diff_not_available"
