@@ -50,9 +50,9 @@ htmlcov/
 # Keep small checked-in instance lists
 !instances/
 
-# ── Claude Code local settings ────────────────────────────────────────────────
-.claude/settings.local.json
-.claude/scheduled_tasks.lock
+# ── Agent config / working files — kept local, not part of the public showcase ─
+.claude/
+CLAUDE.md
 
 # ── Node ──────────────────────────────────────────────────────────────────────
 node_modules/
