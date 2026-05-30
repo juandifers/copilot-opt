@@ -4,6 +4,10 @@
 
 This repository contains the codebase for the bachelor's thesis *Payload Contracts for LLM Copilots in Vehicle Routing*. The thesis defends a payload-contract architecture for grounded copilots over Vehicle Routing Problem with Time Windows (VRPTW) solver state, evaluated in two phases: a 60-case product-contract benchmark (Run 2) and a 109-query operator-persona corpus organized by cognitive operation.
 
+![Routing Copilot demo](docs/routing_copilot_demo.gif)
+
+The operator asks in natural language; the copilot answers only from the loaded solver payload and highlights the relevant route or schedule. Above: a lateness check answered from the payload, an open-ended "what should I keep an eye on?" mapped by the LLM to a grounded watch-list, and a route-timing question that highlights the route on both the network map and the Gantt.
+
 ## What's in this repository
 
 ```
