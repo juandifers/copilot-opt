@@ -16,6 +16,11 @@
 # Shell scripts
 *.sh text eol=lf
 
+# Canonical evaluation report CSVs are byte-locked by docs/canonical_hashes.txt
+# (the hashes are over the on-disk CRLF bytes). Disable eol normalisation so a
+# clone reproduces the exact bytes and the SHA-256 lock still verifies.
+product/evaluation/reports/**/*.csv -text
+
 # Binary — never diff or merge
 *.parquet binary
 *.pkl     binary

@@ -1,0 +1,11 @@
+case_id,implementation_status,family,payload_condition,expected_intent,expected_behavior_class,expected_answerability,n_replicates,n_parsed,intent_correct_rate,answerability_correct_rate,behavior_class_correct_rate,evidence_precision_mean,evidence_recall_mean,warning_precision_mean,warning_recall_mean,missing_field_recall_mean,useful_refusal_correct_rate,partial_answer_correct_rate,all_components_pass_rate,pass_at_k_any,pass_to_the_k_all,stability_class
+R2-008,target_extension,SCHEDULE,false_premise_customer,customer_arrival,useful_refusal,not_answerable,3,3,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,,1.0000,1,1,stable_success
+R2-012,target_extension,PLAN_VALIDITY,missing_validity_fields,feasibility_status,useful_refusal,not_answerable,3,3,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,,1.0000,1,1,stable_success
+R2-015,target_extension,SCHEDULE,false_premise_route,route_end_time,useful_refusal,not_answerable,3,3,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,,1.0000,1,1,stable_success
+R2-048,target_extension,STRUCT,full_route_membership,full_route_listing,direct_answer,answerable,3,3,1.0000,1.0000,1.0000,0.8333,1.0000,1.0000,1.0000,1.0000,,,0.6667,1,0,flaky
+R2-058,target_extension,SCHEDULE,false_premise_customer,customer_arrival,useful_refusal,not_answerable,3,3,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,,1.0000,1,1,stable_success
+R2-027,current,PLAN_VALIDITY,clean,feasibility_status,direct_answer,answerable,3,3,1.0000,1.0000,1.0000,0.5000,0.2500,1.0000,1.0000,1.0000,,,0.0000,0,0,stable_failure
+R2-040,current,STRUCT,clean,single_customer_route_membership,direct_answer_with_warning,answerable,3,3,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,1.0000,,,1.0000,1,1,stable_success
+R2-051,current,SCHEDULE,clean,lateness_summary,direct_answer,answerable,3,3,1.0000,1.0000,1.0000,0.6667,1.0000,1.0000,1.0000,1.0000,,,0.3333,1,0,flaky
+R2-055,current,SCHEDULE,clean,route_end_time,direct_answer_with_warning,answerable,3,3,1.0000,1.0000,1.0000,0.5000,1.0000,1.0000,1.0000,1.0000,,,0.0000,0,0,stable_failure
+R2-060,current,SCHEDULE,clean,route_end_time,direct_answer_with_warning,answerable,3,3,1.0000,1.0000,1.0000,0.5000,1.0000,1.0000,1.0000,1.0000,,,0.0000,0,0,stable_failure

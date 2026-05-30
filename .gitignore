@@ -50,6 +50,10 @@ htmlcov/
 *.log
 *.csv
 
+# Ship the canonical evaluation report CSVs (locked by docs/canonical_hashes.txt
+# and read by `python -m product.evaluation.verify_reports`) despite *.csv above.
+!/product/evaluation/reports/**/*.csv
+
 # Keep small checked-in instance lists
 !instances/
 
