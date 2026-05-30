@@ -1,5 +1,7 @@
 # Payload Contracts for LLM Copilots in Vehicle Routing
 
+[![tests](https://github.com/juandifers/copilot-opt/actions/workflows/tests.yml/badge.svg)](https://github.com/juandifers/copilot-opt/actions/workflows/tests.yml)
+
 This repository contains the codebase for the bachelor's thesis *Payload Contracts for LLM Copilots in Vehicle Routing*. The thesis defends a payload-contract architecture for grounded copilots over Vehicle Routing Problem with Time Windows (VRPTW) solver state, evaluated in two phases: a 60-case product-contract benchmark (Run 2) and a 109-query operator-persona corpus organized by cognitive operation.
 
 ## What's in this repository
