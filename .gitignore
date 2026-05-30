@@ -42,7 +42,10 @@ htmlcov/
 .pytype/
 
 # ── Data — generated / large binary files ────────────────────────────────────
-/data/
+# Ignore data/ contents, but ship the small standard VRPTW instance geometry
+# (Solomon/Homberger .vrp files) the API needs to render maps from a clean clone.
+/data/*
+!/data/vrptw_instances/
 *.parquet
 *.log
 *.csv
