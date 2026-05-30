@@ -901,9 +901,22 @@ def _aggregate_frames(
         winner = winners[0]
         chosen = next(f for f in successful if f.intent == winner)
         telemetry["chose"] = winner
-        # Carry the winner's frame through unchanged (entities included).
-        # Explicit tie_break=False keeps the frame's invariant intact.
-        return chosen.model_copy(update={"tie_break": False}), telemetry
+        # Confidence: use the vote share (winner_count / N_configured)
+        # rather than the donor sample's per-call confidence. A 5/5 majority
+        # is stronger evidence than a single call's 0.62 confidence — using
+        # the donor value verbatim lets one weak sample's flags invalidate a
+        # clear consensus. Clamped to [0, 1] for schema compliance.
+        vote_confidence = min(1.0, max(0.0, counts[winner] / n_configured))
+        # Ambiguity: a strict majority settles the intent — the aggregate is
+        # not ambiguous even if an individual sample was. Clearing the flag
+        # prevents validate_llm_frame from rejecting the aggregated winner.
+        return chosen.model_copy(update={
+            "tie_break": False,
+            "confidence": vote_confidence,
+            "ambiguity": chosen.ambiguity.model_copy(
+                update={"is_ambiguous": False, "reason": None}
+            ),
+        }), telemetry
 
     # No strict majority → unknown + tie_break.
     synthetic = LLMSemanticFrame(
