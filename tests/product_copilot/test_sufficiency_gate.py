@@ -6,9 +6,18 @@ These tests pin those guarantees down.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Iterator
 
 import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+_DEPLOYMENT_CONFIG = REPO_ROOT / "reports" / "predictor_models" / "deployment_config.csv"
+_skipif_no_deployment_config = pytest.mark.skipif(
+    not _DEPLOYMENT_CONFIG.exists(),
+    reason="deployment_config.csv is not shipped in this checkout; "
+           "runs locally when the file is present",
+)
 
 from product.copilot.sufficiency_gate import (
     DEFAULT_RECOMPUTE_ACTION,
@@ -122,6 +131,7 @@ def test_decide_compute_does_not_call_gate_when_disabled(feature_complete_contex
 # ---------------------------------------------------------------------------
 
 
+@_skipif_no_deployment_config
 def test_gate_loads_deployment_config_and_returns_threshold(monkeypatch, feature_complete_contexts):
     monkeypatch.setenv(GATE_FLAG_ENV_VAR, "true")
     result = predict_sufficiency(
@@ -155,6 +165,7 @@ def test_gate_attaches_result_to_decide_compute(monkeypatch, feature_complete_co
 # ---------------------------------------------------------------------------
 
 
+@_skipif_no_deployment_config
 def test_gate_returns_no_decision_when_features_missing(monkeypatch):
     monkeypatch.setenv(GATE_FLAG_ENV_VAR, "true")
     result = predict_sufficiency(family="OBJ", payload_snapshot={}, perturbation_context={})
@@ -371,6 +382,7 @@ def test_gate_does_not_remove_route_indexing_warning_branch(monkeypatch, feature
 # ---------------------------------------------------------------------------
 
 
+@_skipif_no_deployment_config
 def test_gate_can_accept_current_payload(monkeypatch, feature_complete_contexts):
     """The OBJ row in the training parquet is labeled sufficient, so the
     retrained HistGB / C_clean predictor should accept the current
