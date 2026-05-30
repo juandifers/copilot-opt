@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+from product.api import copilot_service
 from product.api.app import app
 from product.api.scenario_store import load_registry
 
@@ -17,6 +18,27 @@ try:
     load_registry()
 except FileNotFoundError as exc:  # pragma: no cover
     pytest.skip(f"Run 1 artifacts not found: {exc}", allow_module_level=True)
+
+
+def _llm_available() -> bool:
+    """True when the LLM semantic adapter is configured (OPENAI_API_KEY set,
+    SDK importable, kill-switch off). Some operator phrasings only route to
+    their intent via the LLM; on the deterministic-only path they fall to
+    ``unknown`` — that lift is the whole point of the adapter. Tests that
+    assert such LLM-routed intents are skipped when the adapter is absent
+    (e.g. CI without a key); they run locally when ``.env`` supplies one.
+    """
+    try:
+        return copilot_service._get_llm_client() is not None
+    except Exception:  # pragma: no cover - defensive
+        return False
+
+
+_REQUIRES_LLM = pytest.mark.skipif(
+    not _llm_available(),
+    reason="needs the LLM semantic adapter (set OPENAI_API_KEY); these prompts "
+           "route to 'unknown' on the deterministic-only path",
+)
 
 
 _SCENARIO_OBJ = "C202__TW_3"  # OBJ-shape: objective_value, route_count
@@ -66,6 +88,7 @@ def test_objective_value(client: TestClient) -> None:
     assert _focus_panel(body) == "impact"
 
 
+@_REQUIRES_LLM
 def test_route_count(client: TestClient) -> None:
     r = client.post(
         "/copilot/ask",
@@ -94,6 +117,7 @@ def test_route_end_time(client: TestClient) -> None:
     assert _focus_panel(body) == "schedule"
 
 
+@_REQUIRES_LLM
 def test_customer_arrival(client: TestClient) -> None:
     r = client.post(
         "/copilot/ask",
@@ -264,6 +288,7 @@ def test_new_customer_assignment(client: TestClient) -> None:
     assert _focus_panel(body) == "map"
 
 
+@_REQUIRES_LLM
 @pytest.mark.parametrize(
     "prompt, expected_intent",
     [
@@ -289,6 +314,7 @@ def test_impact_summary_cluster(
     assert _focus_panel(body) == "impact"
 
 
+@_REQUIRES_LLM
 def test_what_to_watch(client: TestClient) -> None:
     """At-risk stops view: lens=slack, focus=schedule."""
     r = client.post(
@@ -353,6 +379,7 @@ def test_unknown_intent_emits_no_visual_actions(client: TestClient) -> None:
 # ---------------------------------------------------------------------------
 
 
+@_REQUIRES_LLM
 def test_every_non_refusal_response_has_set_lens_and_focus_panel(
     client: TestClient,
 ) -> None:
