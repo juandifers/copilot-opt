@@ -413,6 +413,11 @@ def ask(
             "retry_reason": am.retry_reason,
             "retry_latency_ms": am.retry_latency_ms,
         }
+        # Lever 3 self-consistency telemetry — present only when
+        # SELF_CONSISTENCY_N > 1; absent otherwise so single-call payloads
+        # are byte-identical to the pre-Lever-3 envelope.
+        if am.self_consistency is not None:
+            semantic_adapter["self_consistency"] = am.self_consistency
 
     scenario_id = f"{row.instance_id}__{row.perturbation_id}"
     ui_actions = _build_ui_actions(compute_decision, scenario_id)

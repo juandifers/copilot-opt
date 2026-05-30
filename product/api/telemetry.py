@@ -96,6 +96,13 @@ def log_copilot_ask(
             "llm_intent": adapter_meta.get("llm_intent"),
             "rejected_llm_entities": adapter_meta.get("rejected_llm_entities"),
             "validation_error_details": adapter_meta.get("validation_error_details"),
+            # Lever 3 self-consistency block when SELF_CONSISTENCY_N>1;
+            # omitted from the event entirely when the single-call path ran.
+            **(
+                {"self_consistency": adapter_meta["self_consistency"]}
+                if isinstance(adapter_meta.get("self_consistency"), dict)
+                else {}
+            ),
             "entities": {
                 "customer_ids": entities.get("customer_ids") or [],
                 "route_labels": entities.get("route_labels") or [],
