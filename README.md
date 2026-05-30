@@ -80,7 +80,7 @@ The current solver snapshot contains no perturbed-travel-time scenario; the syst
 
 ## Why this design
 
-A dispatcher acting on a hallucinated route summary is a real operational failure, not a chat-experience problem. The system's guarantee is therefore not "sounds helpful" but "states nothing the solver's live state doesn't support." Putting the LLM on a leash — propose, don't dispose — is what makes that guarantee hold while still letting the LLM do the one thing it's well-suited to: interpreting messy natural language.
+A dispatcher acting on a hallucinated route summary is a real operational failure, not a chat experience problem. The system's guarantee is therefore not "sounds helpful" but "states nothing the solver's live state doesn't support." Putting the LLM on a leash is what makes that guarantee hold while still letting the LLM do the one thing it's well-suited to: interpreting messy natural language.
 
 ## Results
 
@@ -100,10 +100,8 @@ Where results are weak, plainly: action-recommendation queries are near-useless 
 
 ## What this project demonstrates
 
-- **An opaque backend made interrogable in the field.** A constraint solver's output is structured state an operator cannot read directly. Routing Copilot is the layer that exposes it safely — the core of forward-deployed engineering work.
+- **An opaque backend made interrogable in the field.** A constraint solver's output is structured state an operator cannot read directly. Routing Copilot is the layer that exposes it safely.
 - **An LLM system designed not to bluff.** Grounding every claim in a real field and refusing rather than fabricating is an architectural property, not a prompt patch.
-- **End-to-end ownership.** A typed contract pipeline (~40k lines of Python), a FastAPI service, and a React operator UI with route map, schedule, and a deterministic highlight pipeline driven by the contract.
-- **Engineering-quality evaluation.** Four ablations, pass@k stability, a pre-registered benchmark with locked file hashes, ~1,200 tests, and negative results reported rather than hidden.
 
 ## Repo map
 
