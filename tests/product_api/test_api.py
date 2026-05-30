@@ -333,7 +333,10 @@ def test_copilot_ask_missing_scenario_returns_404(client: TestClient) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_diff_returns_404_when_unavailable(client: TestClient) -> None:
+def test_diff_returns_404_when_unavailable(client: TestClient, monkeypatch) -> None:
+    # All registry scenarios now carry diff data, so we force the no-diff path
+    # by patching build_diff_response to return None for this call.
+    monkeypatch.setattr(scenario_store, "build_diff_response", lambda *a, **k: None)
     r = client.post(f"/scenarios/C202/TW_3/diff")
     assert r.status_code == 404
     body = r.json()
