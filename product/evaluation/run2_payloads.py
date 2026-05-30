@@ -33,10 +33,16 @@ from product.evaluation.run2_case_loader import Run2Case
 # ---------------------------------------------------------------------------
 
 
+# Repo-root markers, in preference order. pyproject.toml is the canonical,
+# always-committed root file; CLAUDE.md is kept as a fallback but is not
+# shipped in the public checkout, so it must not be the sole marker.
+_REPO_ROOT_MARKERS = ("pyproject.toml", "CLAUDE.md")
+
+
 def _repo_root() -> Path:
     here = Path(__file__).resolve()
     for parent in (here, *here.parents):
-        if (parent / "CLAUDE.md").exists():
+        if any((parent / marker).exists() for marker in _REPO_ROOT_MARKERS):
             return parent
     raise RuntimeError(f"could not locate repo root from {here}")
 
