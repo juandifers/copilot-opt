@@ -159,10 +159,23 @@ export interface AspectualDispatchBlock {
   intent_at_dispatch: string;
   family: string;
   aspect: string;
-  entities_resolved: {
+  // Present for entity-scoped aspects (e.g. 'lateness', 'timing'); absent for
+  // 'ranking' dispatches, which resolve no entity scope. Treat as optional.
+  entities_resolved?: {
     customer_ids: number[];
     route_labels: string[];
   };
+  // Ranking-aspect fields (present when aspect === 'ranking').
+  ranking_target?: string;
+  ranking_dimension?: string;
+  top_k?: number;
+  ambiguity_note?: string;
+  ambiguity_detected?: boolean;
+  alternatives?: Array<{
+    dimension: string;
+    label: string;
+    example_phrasing: string;
+  }>;
   field_paths_surfaced: string[];
 }
 

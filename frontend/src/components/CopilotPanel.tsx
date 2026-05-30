@@ -170,6 +170,14 @@ function composeAspectualProse(
   asp: NonNullable<CopilotAskResponse['aspectual_dispatch']>,
   sel: SelectFns,
 ): React.ReactNode {
+  // Ranking dispatches (aspect === 'ranking') resolve no entity scope — they
+  // carry ranking_target/ranking_dimension and a purpose-built answer_text
+  // instead of entities_resolved. Render that text rather than the
+  // entity-scoped evidence list below, which has nothing to describe.
+  if (!asp.entities_resolved) {
+    return resp.answer_text ? <>{resp.answer_text}</> : null;
+  }
+
   // Describe the entity scope succinctly. When both customer_ids and
   // route_labels are present, the route is the user-facing scope — the
   // customer_ids are usually the route's members surfaced via the
