@@ -129,7 +129,7 @@ npm install
 npm run dev
 ```
 
-The deterministic path — sufficiency gate, evidence resolution, refusals — runs **without an API key**. The key is only required for the LLM semantic adapter.
+The deterministic path, sufficiency gate, evidence resolution, refusals, runs **without an API key**. The key is only required for the LLM semantic adapter.
 
 ## Reproduce the evaluation
 
@@ -140,7 +140,7 @@ python -m product.evaluation.verify_reports
 python -m product.evaluation.verify_reports --per-category
 ```
 
-Re-running the deterministic configuration is bit-exact; the LLM configurations are subject to roughly ±3pp model variance. Details in [`docs/reproducing_results.md`](docs/reproducing_results.md).
+Re-running the deterministic configuration is bit exact; the LLM configurations are subject to roughly ±3pp model variance. Details in [`docs/reproducing_results.md`](docs/reproducing_results.md).
 
 ## Stack
 
@@ -148,4 +148,4 @@ Python · FastAPI · Pydantic · OpenAI API · PyVRP · React · TypeScript · V
 
 ## Origins
 
-Originated as the bachelor's thesis *Payload Contracts for LLM Copilots in Vehicle Routing* and built to research-grade evaluation standards: pre-registration, locked benchmarks, ablations, and honest negative results. The original thesis README is preserved at [`docs/README_thesis_original.md`](docs/README_thesis_original.md).
+Originated as the bachelor's thesis *Payload Contracts for LLM Copilots in Vehicle Routing*. The original thesis README is preserved at [`docs/README_thesis_original.md`](docs/README_thesis_original.md).
